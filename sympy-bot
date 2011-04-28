@@ -1,0 +1,48 @@
+#! /usr/bin/env python
+
+import json
+from urllib2 import urlopen
+import sys
+from optparse import OptionParser
+
+def main():
+    parser = OptionParser(usage="""\
+[options] [commands]
+
+Commands:
+
+  review NNN            Reviews the pull request NNN
+  list                  Lists all open pull requests""")
+    parser.add_option("--upload",
+            action="store_true", dest="upload",
+            default=False, help="Uploads the results into the pull request")
+    options, args = parser.parse_args()
+    if len(args) == 1:
+        arg, = args
+        if arg == "list":
+            list_pull_requests()
+            return
+        print "Unknown command"
+        sys.exit(1)
+    elif len(args) == 2:
+        arg1, arg2 = args
+        if arg1 == "review":
+            review(arg2, upload=options.upload)
+        print "Unknown command"
+        sys.exit(1)
+    elif len(args) == 0:
+        pass
+    else:
+        print "Too many arguments"
+        sys.exit(1)
+    parser.print_help()
+
+def list_pull_requests():
+    p = json.load(urlopen('http://github.com/api/v2/json/pulls/sympy/sympy'))
+    for pull in p['pulls']:
+        repo = pull['head']['repository']['url']
+        branch = pull['head']['ref']
+        print repo + ' ' + branch
+
+if __name__ == "__main__":
+    main()
