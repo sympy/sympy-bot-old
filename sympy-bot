@@ -39,8 +39,22 @@ Commands:
         sys.exit(1)
     parser.print_help()
 
+def github_get_pull_request_all():
+    """
+    Returns all github pull requests.
+    """
+    return json.load(urlopen('http://github.com/api/v2/json/pulls/sympy/sympy'))
+
+def github_get_pull_request(n):
+    """
+    Returns pull request 'n'.
+    """
+    url = 'http://github.com/api/v2/json/pulls/sympy/sympy/%d'
+    data = json.load(urlopen(url % n))
+    return data["pull"]
+
 def list_pull_requests():
-    p = json.load(urlopen('http://github.com/api/v2/json/pulls/sympy/sympy'))
+    p = github_get_pull_request_all()
     for pull in p['pulls']:
         n = pull['number']
         repo = pull['head']['repository']['url']
@@ -50,6 +64,16 @@ def list_pull_requests():
 def review(n, upload=False):
     tmpdir = mkdtemp()
     print "> Working directory: %s" % tmpdir
+    pull = github_get_pull_request(n)
+    assert pull['number'] == n
+    print "> Reviewing pull request #%d" % n
+    repo = pull['head']['repository']['url']
+    branch = pull['head']['ref']
+    user = pull["user"]
+    print "> Pull request info:"
+    print '>     Author: "%s" <%s>' % (user["name"], user["email"])
+    print ">     Repository: %s" % repo
+    print ">     Branch: %s" % branch
 
 if __name__ == "__main__":
     main()
