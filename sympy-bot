@@ -40,9 +40,10 @@ Commands:
 def list_pull_requests():
     p = json.load(urlopen('http://github.com/api/v2/json/pulls/sympy/sympy'))
     for pull in p['pulls']:
+        n = pull['number']
         repo = pull['head']['repository']['url']
         branch = pull['head']['ref']
-        print repo + ' ' + branch
+        print "#%03d: %s %s" % (n, repo, branch)
 
 if __name__ == "__main__":
     main()
