@@ -187,6 +187,7 @@ with github, otherwise not saved anywhere else):"""
     github_add_comment_to_pull_request(n, review, username, password)
     print ">     Done."
     print "> Check the results: https://github.com/sympy/sympy/pull/%d" % n
+    print "> Merged pull request available in: %s" % tmpdir
 
 if __name__ == "__main__":
     main()
