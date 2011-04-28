@@ -116,6 +116,10 @@ def review(n, upload=False):
     print "Done."
     print
     print "View report at: %s/out/report.html" % tmpdir
+    print "> Uploading test results"
+    s = cmd("other/pastebin.py %s/out/2* -n sympy-bot --public -e N" % \
+            tmpdir, capture=True)
+    print s
 
 if __name__ == "__main__":
     main()
