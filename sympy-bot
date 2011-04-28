@@ -106,12 +106,16 @@ def review(n, upload=False):
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
 
-    open("%s/branches" % tmpdir, "w").write("%s %s" % (repo, branch))
+    open("%s/branches" % tmpdir, "w").write(
+        "https://github.com/sympy/sympy.git master\n%s %s" % (repo, branch))
     print "> Cloning sympy/sympy master"
     cmd("cd %s; git clone https://github.com/sympy/sympy.git" % tmpdir)
     print "> Running sympy-next"
     cmd("cp other/sympy-next.py %s/" % tmpdir)
-    cmd("cd %s; ./sympy-next.py sympy branches out" % (tmpdir))
+    cmd("cd %s; ./sympy-next.py sympy branches out" % tmpdir)
+    print "Done."
+    print
+    print "View report at: %s/out/report.html" % tmpdir
 
 if __name__ == "__main__":
     main()
