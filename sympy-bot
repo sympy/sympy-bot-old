@@ -4,6 +4,7 @@ import json
 from urllib2 import urlopen
 import sys
 from optparse import OptionParser
+from tempfile import mkdtemp
 
 def main():
     parser = OptionParser(usage="""\
@@ -27,7 +28,8 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(arg2, upload=options.upload)
+            review(int(arg2), upload=options.upload)
+            return
         print "Unknown command"
         sys.exit(1)
     elif len(args) == 0:
@@ -44,6 +46,10 @@ def list_pull_requests():
         repo = pull['head']['repository']['url']
         branch = pull['head']['ref']
         print "#%03d: %s %s" % (n, repo, branch)
+
+def review(n, upload=False):
+    tmpdir = mkdtemp()
+    print "> Working directory: %s" % tmpdir
 
 if __name__ == "__main__":
     main()
