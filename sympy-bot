@@ -92,6 +92,14 @@ def list_pull_requests():
         branch = pull['head']['ref']
         print "#%03d: %s %s" % (n, repo, branch)
 
+def formulate_review(report_url):
+    s = """\
+Test results: %(url)s
+
+Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
+        {"url": report_url}
+    return s
+
 def review(n, upload=False):
     tmpdir = mkdtemp()
     print "> Working directory: %s" % tmpdir
@@ -119,7 +127,12 @@ def review(n, upload=False):
     print "> Uploading test results"
     s = cmd("other/pastebin.py %s/out/2* -n sympy-bot --public -e N" % \
             tmpdir, capture=True)
+    url = s.split()[-1]
+    print "> Uploaded at: %s" % url
+    s = formulate_review(url)
+    print "> Review:"
     print s
+    print "> Uploading the review to the github pull request"
 
 if __name__ == "__main__":
     main()
