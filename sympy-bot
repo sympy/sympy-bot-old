@@ -7,6 +7,7 @@ from optparse import OptionParser
 from tempfile import mkdtemp
 import subprocess
 import os
+from os.path import expandvars
 
 class CmdException(Exception):
     pass
@@ -105,9 +106,11 @@ def review(n, upload=False):
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
 
-    open("%d/branches" % tmpdir, "w").write("%s %s" % (repo, branch))
-    cmd("cd %s; git clone https://github.com/sympy/sympy.git")
-    cmd("other/sympy-next %d/sympy %d/branches %d/out" % (tmpdir, tmpdir,
+    open("%s/branches" % tmpdir, "w").write("%s %s" % (repo, branch))
+    print "> Cloning sympy/sympy master"
+    cmd("cd %s; git clone https://github.com/sympy/sympy.git" % tmpdir)
+    print "> Running sympy-next"
+    cmd("other/sympy-next.py %s/sympy %s/branches %s/out" % (tmpdir, tmpdir,
         tmpdir))
 
 if __name__ == "__main__":
