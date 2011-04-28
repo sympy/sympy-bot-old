@@ -186,6 +186,7 @@ with github, otherwise not saved anywhere else):"""
     print "> Uploading the review to the github pull request"
     github_add_comment_to_pull_request(n, review, username, password)
     print ">     Done."
+    print "> Check the results: https://github.com/sympy/sympy/pull/%d" % n
 
 if __name__ == "__main__":
     main()
