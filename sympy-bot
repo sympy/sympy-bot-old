@@ -12,6 +12,7 @@ import urllib2
 import base64
 from urllib import urlencode
 from getpass import getpass
+import time
 
 class CmdException(Exception):
     pass
@@ -115,11 +116,22 @@ def github_add_comment_to_pull_request(n, comment, username, password):
 
 def list_pull_requests():
     p = github_get_pull_request_all()
+    pulls = []
     for pull in p['pulls']:
         n = pull['number']
         repo = pull['head']['repository']['url']
         branch = pull['head']['ref']
+        author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
+                pull["user"].get("email", ""))
+        last_change = pull["updated_at"]
+        last_change = time.strptime(last_change, "%Y-%m-%dT%H:%M:%SZ")
+        last_change = time.mktime(last_change)
+        pulls.append((last_change, n, repo, branch, author))
+    pulls.sort(key=lambda x: x[0])
+    for last_change, n, repo, branch, author in pulls:
         print "#%03d: %s %s" % (n, repo, branch)
+        print "      Author: %s" % author
+        print "      Date  : %s" % time.ctime(last_change)
 
 def formulate_review(report_url):
     s = """\
@@ -146,8 +158,10 @@ with github, otherwise not saved anywhere else):"""
     repo = pull['head']['repository']['url']
     branch = pull['head']['ref']
     user = pull["user"]
+    author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
+            pull["user"].get("email", ""))
     print "> Pull request info:"
-    print '>     Author: "%s" <%s>' % (user["name"], user["email"])
+    print ">     Author: %s" % author
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
 
