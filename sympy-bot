@@ -205,6 +205,12 @@ def review(n, upload=False, reference=None):
     log = open(log_file).read()
     report = open(report_file).read()
     log_url = pastehtml_upload(log, input_type="txt")
+    # There is a bug in pastehtml.com, that if we upload the html too fast,
+    # also the log_url will contain the "report" instead of "log". So we'll
+    # sleep for 1s
+    print ">     Sleep 1s (bug in pastehtml.com)..."
+    time.sleep(1)
+    print ">         Resume"
     report_url = pastehtml_upload(report, input_type="html")
     print "> Uploaded log at: %s" % log_url
     print "> Uploaded report at: %s" % report_url
