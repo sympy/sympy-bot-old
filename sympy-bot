@@ -13,6 +13,7 @@ import base64
 from urllib import urlencode
 from getpass import getpass
 import time
+from glob import glob
 
 class CmdException(Exception):
     pass
@@ -113,6 +114,18 @@ def github_add_comment_to_pull_request(n, comment, username, password):
     s = json.load(urllib2.urlopen(request))
     assert s["comment"]["body"] == comment
 
+def pastehtml_upload(source, input_type="html"):
+    """
+    Uploads 'source' as an 'input_type' type to pastehtml.com.
+
+    source ....... source of the webpage/text
+    input_type ... txt or html (default html)
+
+    """
+    url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
+    request = urllib2.Request(url % input_type,
+            data=urlencode([("txt", source)]))
+    return urllib2.urlopen(request).read()
 
 def list_pull_requests():
     p = github_get_pull_request_all()
@@ -133,12 +146,13 @@ def list_pull_requests():
         print "      Author: %s" % author
         print "      Date  : %s" % time.ctime(last_change)
 
-def formulate_review(report_url):
+def formulate_review(log_url, report_url):
     s = """\
-Test results: %(url)s
+Test results html report: %(report_url)s
+Full log: %(log_url)s
 
 Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
-        {"url": report_url}
+        {"report_url": report_url, "log_url": log_url}
     return s
 
 def review(n, upload=False):
@@ -175,13 +189,18 @@ def review(n, upload=False):
     cmd("cd %s; ./sympy-next.py sympy branches out" % tmpdir)
     print "Done."
     print
-    print "View report at: %s/out/report.html" % tmpdir
+    report_file = "%s/out/report.html" % tmpdir
+    log_file = glob("%s/out/2*" % tmpdir)[0]
+    print "View report at: %s" % report_file
+    print "View log at: %s" % log_file
     print "> Uploading test results"
-    s = cmd("other/pastebin.py %s/out/2* -n sympy-bot --public -e N" % \
-            tmpdir, capture=True)
-    url = s.split()[-1]
-    print "> Uploaded at: %s" % url
-    review = formulate_review(url)
+    log = open(log_file).read()
+    report = open(report_file).read()
+    log_url = pastehtml_upload(log, input_type="txt")
+    report_url = pastehtml_upload(report, input_type="html")
+    print "> Uploaded log at: %s" % log_url
+    print "> Uploaded report at: %s" % report_url
+    review = formulate_review(log_url, report_url)
     print "> Review:"
     print review
     if upload:
