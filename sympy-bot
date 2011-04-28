@@ -129,7 +129,14 @@ def pastehtml_upload(source, input_type="html"):
     url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
     request = urllib2.Request(url % input_type,
             data=urlencode([("txt", source)]))
-    return urllib2.urlopen(request).read()
+    while True:
+        try:
+            result = urllib2.urlopen(request)
+            break
+        except urllib2.HTTPError:
+            print "Error while accessing pastehtml.com, retrying in 2s"
+            time.sleep(2)
+    return result.read()
 
 def list_pull_requests():
     p = github_get_pull_request_all()
