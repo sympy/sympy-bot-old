@@ -110,8 +110,8 @@ def review(n, upload=False):
     print "> Cloning sympy/sympy master"
     cmd("cd %s; git clone https://github.com/sympy/sympy.git" % tmpdir)
     print "> Running sympy-next"
-    cmd("other/sympy-next.py %s/sympy %s/branches %s/out" % (tmpdir, tmpdir,
-        tmpdir))
+    cmd("cp other/sympy-next.py %s/" % tmpdir)
+    cmd("cd %s; ./sympy-next.py sympy branches out" % (tmpdir))
 
 if __name__ == "__main__":
     main()
