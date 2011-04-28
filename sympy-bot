@@ -29,6 +29,9 @@ Commands:
     parser.add_option("-n", "--no-upload",
             action="store_false", dest="upload",
             default=True, help="Do not upload the results into the pull request")
+    parser.add_option("--reference",
+            action="store", type="str", dest="reference",
+            default=None, help="Passes this to 'git clone <sympy repo>'")
     options, args = parser.parse_args()
     if len(args) == 1:
         arg, = args
@@ -40,7 +43,8 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(int(arg2), upload=options.upload)
+            review(int(arg2), upload=options.upload,
+                    reference=options.reference)
             return
         print "Unknown command"
         sys.exit(1)
@@ -155,7 +159,7 @@ Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
         {"report_url": report_url, "log_url": log_url}
     return s
 
-def review(n, upload=False):
+def review(n, upload=False, reference=None):
     if upload:
         print """Enter your github username & password (it will be kept as a Python
     variable as long as sympy-bot is running and sent over https to authenticate
@@ -183,7 +187,11 @@ def review(n, upload=False):
     open("%s/branches" % tmpdir, "w").write(
         "https://github.com/sympy/sympy.git master\n%s %s" % (repo, branch))
     print "> Cloning sympy/sympy master"
-    cmd("cd %s; git clone https://github.com/sympy/sympy.git" % tmpdir)
+    if reference:
+        cmd("cd %s; git clone --reference %s git://github.com/sympy/sympy.git "\
+                % (tmpdir, reference))
+    else:
+        cmd("cd %s; git clone git://github.com/sympy/sympy.git " % tmpdir)
     print "> Running sympy-next"
     cmd("cp other/sympy-next.py %s/" % tmpdir)
     cmd("cd %s; ./sympy-next.py sympy branches out" % tmpdir)
