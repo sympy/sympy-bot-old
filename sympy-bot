@@ -5,6 +5,11 @@ from urllib2 import urlopen
 import sys
 from optparse import OptionParser
 from tempfile import mkdtemp
+import subprocess
+import os
+
+class CmdException(Exception):
+    pass
 
 def main():
     parser = OptionParser(usage="""\
@@ -38,6 +43,31 @@ Commands:
         print "Too many arguments"
         sys.exit(1)
     parser.print_help()
+
+def cmd(s, capture=False, ok_exit_code_list=None):
+    """
+    Executes the command "s".
+
+    It raises an exception if the command fails to run.
+
+    capture ... If True, it captures its output and returns it as a string.
+    ok_exit_code_list ... a list of ok exit codes (otherwise cmd() raises an
+    exception)
+    """
+    if ok_exit_code_list is None:
+        ok_exit_code_list = [0]
+    s = expandvars(s)
+    if capture:
+        p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT)
+        output = p.communicate()[0]
+        r = p.returncode
+    else:
+        output = None
+        r = os.system(s)
+    if r not in ok_exit_code_list:
+        raise CmdException("Command '%s' failed with err=%d." % (s, r))
+    return output
 
 def github_get_pull_request_all():
     """
@@ -74,6 +104,11 @@ def review(n, upload=False):
     print '>     Author: "%s" <%s>' % (user["name"], user["email"])
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
+
+    open("%d/branches" % tmpdir, "w").write("%s %s" % (repo, branch))
+    cmd("cd %s; git clone https://github.com/sympy/sympy.git")
+    cmd("other/sympy-next %d/sympy %d/branches %d/out" % (tmpdir, tmpdir,
+        tmpdir))
 
 if __name__ == "__main__":
     main()
