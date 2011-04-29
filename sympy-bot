@@ -157,13 +157,12 @@ def list_pull_requests():
         print "      Author: %s" % author
         print "      Date  : %s" % time.ctime(last_change)
 
-def formulate_review(log_url, report_url):
+def formulate_review(report_url):
     s = """\
-Test results html report: %(report_url)s
-Full log: %(log_url)s
+Test results html report: %s
 
 Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
-        {"report_url": report_url, "log_url": log_url}
+       report_url
     return s
 
 def review(n, upload=False, reference=None):
@@ -201,27 +200,19 @@ def review(n, upload=False, reference=None):
         cmd("cd %s; git clone git://github.com/sympy/sympy.git " % tmpdir)
     print "> Running sympy-next"
     cmd("cp other/sympy-next.py %s/" % tmpdir)
-    cmd("cd %s; ./sympy-next.py sympy branches out" % tmpdir)
+    cmd("cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose" \
+        % tmpdir)
     print "Done."
     print
     report_file = "%s/out/report.html" % tmpdir
-    log_file = glob("%s/out/2*" % tmpdir)[0]
+    log_file = "%s/out/log" % tmpdir
     print "View report at: %s" % report_file
     print "View log at: %s" % log_file
     print "> Uploading test results"
-    log = open(log_file).read()
     report = open(report_file).read()
-    log_url = pastehtml_upload(log, input_type="txt")
-    # There is a bug in pastehtml.com, that if we upload the html too fast,
-    # also the log_url will contain the "report" instead of "log". So we'll
-    # sleep for 1s
-    print ">     Sleep 1s (bug in pastehtml.com)..."
-    time.sleep(1)
-    print ">         Resume"
     report_url = pastehtml_upload(report, input_type="html")
-    print "> Uploaded log at: %s" % log_url
     print "> Uploaded report at: %s" % report_url
-    review = formulate_review(log_url, report_url)
+    review = formulate_review(report_url)
     print "> Review:"
     print review
     if upload:

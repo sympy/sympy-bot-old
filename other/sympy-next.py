@@ -3,38 +3,35 @@
 # Tool to aggeregrate several branches, automatically merge them (if possible)
 # and create statistics about unit tests.
 #
-# Usage: sympy-next.py repo branches out-dir
-#    or: sympy-next.py out-dir
-# where
-#   repo      is is the location of a clean repository (possibly empty)
-#             that is going to be used.
-#   branches  is a file containing a list of branches, one entry per line, like
-#             so:
-#                    https://github.com/sympy/sympy.git master
-#                    /home/ness/src/sympy 360_zoo
-#                    ...
-#   out-dir   Is the name of a directory where output is going to be created.
-#
-# This program walks the list of branches, fetches all of them, and tries to
-# merge them in order. If there are merge-failures the branch is dropped. After
-# all successful merges are done, the unit tests are run. Finally a report is
-# created of which branches could be merged, and which tests passed.
-# All commands run are logged to a file in the output directory.
-#
-# If only out-dir is specified, then only the html is re-created.
+# usage: sympy-next.py <options>                          
+#        --help            -h  This message
+#        --verbose         -v  Enable verbose output
+#        --no-test         -n  Only recreate output
+#        --stamp=name      -s  Identifier for this run [generated from date]
+#        --logfile=name    -l  Name of logfile
+#        --branchfile=file -b  File to get branches from
+#        --outdir=dir      -o  Where to create output
+#        --command=cmd     -c  Command to run for testing
+#        --repo=dir        -r  Repository to use for testing
 #
 # TODO
 #  o Html output, and output creation, are ugly.
 #  o At some stage pruning reports, or at least not showing everything, is
 #    probably helpful.
+#  o Ordering of output is not necessarily very sensible.
 
 import sys
 import os
 import time
 import subprocess
 import pickle
+import getopt
 
-verbose = True
+# options
+verbose = False                  # --verbose
+picklef = "reports"
+command = ['./setup.py', 'test'] # --command
+
 def logit(message):
     print >> log, '>', message
     log.flush()
@@ -52,7 +49,7 @@ def read_branchfile(f):
 
 def run_tests():
     logit("Running unit tests.")
-    out = subprocess.Popen(["./bin/test"], stdout=subprocess.PIPE).stdout
+    out = subprocess.Popen(command, stdout=subprocess.PIPE).stdout
 
     report = []
     def my_join(file):
@@ -69,15 +66,19 @@ def run_tests():
         buf = ''
         for c in iter:
             buf += c
-            if buf.endswith('sympy/'):
-                r = buf[:-6]
-                buf = ''
-                yield r
+            splits = ['sympy/', 'doc/']
+            for s in splits:
+                if buf.endswith(s):
+                    r = buf[:-len(s)]
+                    buf = s
+                    yield r
+        yield buf
+
     for line in my_split(my_join(out)):
         good = None
-        if line.endswith('[OK]\n'):
+        if line.find('[OK]') != -1:
             good = True
-        elif line.endswith('[FAIL]\n'):
+        elif line.find('[FAIL]') != -1:
             good = False
         if good is None:
             continue
@@ -236,9 +237,15 @@ def write_report(reports):
         outf.write('  </tr>\n')
     outf.write('</table>\n')
 
+    # Finally dump the log
+    outf.write('<h1> Latest Log </h1>\n')
+    outf.write('<pre>\n')
+    log.seek(0)
+    outf.write(log.read())
+    outf.write('</pre>')
+
     outf.write('</body></html>')
 
-picklef = "reports"
 def create_report(merges, tests, stamp):
     # load old reports
     reports = []
@@ -259,30 +266,97 @@ def create_report(merges, tests, stamp):
 
 # MAIN PROGRAM
 
+def usage(message):
+    if None != message:
+        print 'error:', message
+    print 'usage: %s <options>' % os.path.basename(__file__)
+    print '       --help            -h  This message'
+    print '       --verbose         -v  Enable verbose output'
+    print '       --no-test         -n  Only recreate output'
+    print '       --stamp=name      -s  Identifier for this run [generated from date]'
+    print '       --logfile=name    -l  Name of logfile'
+    print '       --branchfile=file -b  File to get branches from'
+    print '       --outdir=dir      -o  Where to create output'
+    print '       --command=cmd     -c  Command to run for testing'
+    print '       --repo=dir        -r  Repository to use for testing'
+    sys.exit(1)
+
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
-        os.chdir(sys.argv[1])
-        write_report(pickle.load(open(picklef, 'rb')))
-        sys.exit(0)
+    stamp      = None
+    logfile    = None
+    branchfile = None
 
-    if len(sys.argv) != 4:
-        print >> sys.stderr, "Usage: %s repo branches out-dir" % sys.argv[0]
-        sys.exit(1)
+    repo       = None
+    branchfile = None
+    outdir     = None
+    no_test    = False
 
-    repo       = os.path.abspath(sys.argv[1])
-    branchfile = os.path.abspath(sys.argv[2])
-    outdir     = os.path.abspath(sys.argv[3])
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'hvns:l:b:o:c:r:',
+                                  ['help', 'verbose', 'no-test',
+                                   'stamp=',
+                                   'logfile=',
+                                   'branchfile=',
+                                   'outdir=',
+                                   'command=',
+                                   'repo='])
+    except getopt.GetoptError, err:
+        usage(err)
 
-    # create us a timestamp
-    tm = time.localtime(time.time())
-    stamp = "%s%s%s%s%s" % (tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min)
+    for opt, arg in opts:
+        if opt in ('-v', '--verbose'):
+            verbose = True
+        elif opt in ('-h', '--help'):
+            usage(None)
+        elif opt in ('-n', '--no-test'):
+            no_test = True
+        elif opt in ('-s', '--stamp'):
+            stamp = arg
+        elif opt in ('-l', '--logfile'):
+            logfile = arg
+        elif opt in ('-b', '--branchfile'):
+            branchfile = arg
+        elif opt in ('-o', '--outdir'):
+            outdir = arg
+        elif opt in ('-c', '--command'):
+            command = arg.split()
+        elif opt in ('-r', '--repo'):
+            repo = arg
+        else:
+            usage('unhandled option: ' + opt)
+
+    if outdir is None:
+        usage('Need to specify an output directory.')
+    outdir = os.path.abspath(outdir)
+
+    if stamp is None:
+        # create us a timestamp
+        tm = time.localtime(time.time())
+        stamp = "%s%s%s%s%s" % (tm.tm_year, tm.tm_mon,
+                                tm.tm_mday, tm.tm_hour, tm.tm_min)
+
+    if logfile is None:
+        logfile = stamp
 
     # create out dir if necessary
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
     # we will log all output to here
-    log = open(os.path.join(outdir, stamp), 'w')
+    log = open(os.path.join(outdir, logfile), 'w+')
+
+    if no_test:
+        os.chdir(outdir)
+        write_report(pickle.load(open(picklef, 'rb')))
+        sys.exit(0)
+
+    if branchfile is None:
+        usage('Need to specify a branchfile.')
+    branchfile = os.path.abspath(branchfile)
+
+    if repo is None:
+        usage('Need to specify a repo.')
+    repo = os.path.abspath(repo)
 
     # find out which branches to test
     branches = read_branchfile(branchfile)
