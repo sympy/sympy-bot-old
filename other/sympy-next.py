@@ -75,14 +75,17 @@ def run_tests():
         yield buf
 
     for line in my_split(my_join(out)):
+        import re
         good = None
         if line.find('[OK]') != -1:
             good = True
         elif line.find('[FAIL]') != -1:
             good = False
+        elif re.search('     \[\d*\]', line):
+            good = False
         if good is None:
             continue
-        report.append((line.split('[')[0], good))
+        report.append((line.split('[')[0].split()[0], good))
 
     return report
 
