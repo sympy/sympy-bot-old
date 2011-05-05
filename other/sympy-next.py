@@ -217,28 +217,67 @@ def write_report(reports):
         outf.write('  </tr>\n')
     outf.write('</table>\n')
 
-    outf.write('<h1> Test Report </h1>\n')
+    # filter the reports into test/doctest/documentation test
+    tests = {}
+    doctests = {}
+    documentation = {}
+    for name, test in testtable.iteritems():
+        if name.find('tests/') != -1:
+            tests[name] = test
+        elif name.find('doc/') != -1:
+            documentation[name] = test
+        else:
+            doctests[name] = test
+
+    # create a summary
+    outf.write('<h1> Test Report Summary </h1>\n')
     outf.write('<table border="1">\n')
     outf.write('  <tr>\n')
     outf.write('    <th> </th>\n')
+    for i in ['tests', 'doctests', 'documentation']:
+        outf.write('<th> %s </th>\n' % i)
+    outf.write('  </tr>\n')
     for stamp, num in stampnums.iteritems():
         for i in range(num):
-            outf.write('    <th> %s-%d </th\n' % (stamp, i))
-    outf.write('  </tr>\n')
-    for name, test in sorted(testtable.iteritems()):
+            outf.write('<tr>\n')
+            outf.write('    <th> %s-%d </th>\n' % (stamp, i))
+            for table in [tests, doctests, documentation]:
+                fail = 0
+                for _, test in table.iteritems():
+                    if (stamp, i) in test and not test[(stamp, i)]:
+                        fail += 1
+                if fail == 0:
+                    outf.write('<td align="center" bgcolor="#00FF00"> OK </td>\n')
+                else:
+                    outf.write('<td align="center" bgcolor="#FF0000"> FAIL %d </td>\n' % fail)
+            outf.write('</tr>\n')
+    outf.write('</table>')
+
+    # print all test reports
+    for table, tname in [(tests, 'Test'), (doctests, 'Doctest'),
+                         (documentation, 'Documentation Test')]:
+        outf.write('<h1> %s Report </h1>\n' % tname)
+        outf.write('<table border="1">\n')
         outf.write('  <tr>\n')
-        outf.write('    <th align="left"> %s </th>\n' % name)
+        outf.write('    <th> </th>\n')
         for stamp, num in stampnums.iteritems():
             for i in range(num):
-                if (stamp, i) in test:
-                    if test[(stamp, i)]:
-                        outf.write('    <td align="center" bgcolor="#00FF00"> OK </td>\n')
-                    else:
-                        outf.write('    <td align="center" bgcolor="#FF0000"> FAIL </td>\n')
-                else:
-                    outf.write('    <td align="center"> N/A </td>\n')
+                outf.write('    <th> %s-%d </th\n' % (stamp, i))
         outf.write('  </tr>\n')
-    outf.write('</table>\n')
+        for name, test in sorted(table.iteritems()):
+            outf.write('  <tr>\n')
+            outf.write('    <th align="left"> %s </th>\n' % name)
+            for stamp, num in stampnums.iteritems():
+                for i in range(num):
+                    if (stamp, i) in test:
+                        if test[(stamp, i)]:
+                            outf.write('<td align="center" bgcolor="#00FF00"> OK </td>\n')
+                        else:
+                            outf.write('<td align="center" bgcolor="#FF0000"> FAIL </td>\n')
+                    else:
+                        outf.write('    <td align="center"> N/A </td>\n')
+            outf.write('  </tr>\n')
+        outf.write('</table>\n')
 
     # Finally dump the log
     outf.write('<h1> Latest Log </h1>\n')
