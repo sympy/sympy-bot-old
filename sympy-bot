@@ -26,9 +26,9 @@ Commands:
 
   review NNN            Reviews the pull request NNN
   list                  Lists all open pull requests""")
-    parser.add_option("-n", "--no-upload",
-            action="store_false", dest="upload",
-            default=True, help="Do not upload the results into the pull request")
+    parser.add_option("-u", "--upload",
+            action="store_true", dest="upload",
+            default=False, help="Upload the results into the pull request")
     parser.add_option("--reference",
             action="store", type="str", dest="reference",
             default=None, help="Passes this to 'git clone <sympy repo>'")
