@@ -97,6 +97,8 @@ def github_get_pull_request(n):
 def github_check_authentication(username, password):
     """
     Checks that username & password is valid.
+
+    Returns True if the password was valid and False if it was not.
     """
     request = urllib2.Request("https://github.com/api/v2/json/user/show/%s" % \
             username)
@@ -104,7 +106,8 @@ def github_check_authentication(username, password):
     request.add_header("Authorization", "Basic %s" % base64string)
     s = json.load(urllib2.urlopen(request))
     if not ("user" in s and "plan" in s["user"]):
-        raise Exception("Invalid username or password")
+        return False
+    return True
 
 def github_add_comment_to_pull_request(n, comment, username, password):
     """
@@ -181,7 +184,9 @@ def review(n, upload=False, reference=None):
         username = raw_input("Username: ")
         password = getpass("Password: ")
         print "> Checking username and password..."
-        github_check_authentication(username, password)
+        while not github_check_authentication(username, password):
+            print "> Permission denied, please try again."
+            password = getpass("Password: ")
         print ">     OK."
     tmpdir = mkdtemp()
     print "> Working directory: %s" % tmpdir
