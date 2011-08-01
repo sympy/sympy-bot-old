@@ -37,11 +37,6 @@ Commands:
             default=None, help="Passes this to 'git clone <sympy repo>'")
     options, args = parser.parse_args()
 
-    if options.reference is not None:
-        reference = os.path.abspath(os.path.expanduser(os.path.expandvars(options.reference)))
-    else:
-        reference = None
-
     if len(args) == 1:
         arg, = args
         if arg == "list":
@@ -52,7 +47,7 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(int(arg2), upload=options.upload, reference=reference)
+            review(int(arg2), upload=options.upload, reference=options.reference)
             return
         print "Unknown command"
         sys.exit(1)
@@ -186,13 +181,7 @@ Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
        report_url
     return s
 
-_login_message = """\
-Enter your GitHub username & password or press ^C to quit. The password
-will be kept as a Python variable as long as sympy-bot is running and
-https to authenticate with GitHub, otherwise not saved anywhere else:\
-"""
-
-def github_authenticate():
+def load_config_file():
     conf_file = os.path.expanduser('~/.sympy/sympy-bot.conf')
 
     if os.path.exists(conf_file):
@@ -206,22 +195,32 @@ def github_authenticate():
             except:
                 pass
             else:
-                try:
-                    username = namespace['user'] + '/token'
-                    password = namespace['token']
-                except KeyError:
-                    pass
-                else:
-                    print "> Using %s" % conf_file
+                print "> Using %s" % conf_file
+                return namespace
 
-                    try:
-                        print "> Checking username and password ..."
-                        github_check_authentication(username, password)
-                    except AuthenticationFailed:
-                        print ">     Authentication failed."
-                    else:
-                        print ">     OK."
-                        return username, password
+    return {}
+
+_login_message = """\
+Enter your GitHub username & password or press ^C to quit. The password
+will be kept as a Python variable as long as sympy-bot is running and
+https to authenticate with GitHub, otherwise not saved anywhere else:\
+"""
+
+def github_authenticate(config):
+    try:
+        username = config['user'] + '/token'
+        password = config['token']
+    except KeyError:
+        pass
+    else:
+        try:
+            print "> Checking username and password ..."
+            github_check_authentication(username, password)
+        except AuthenticationFailed:
+            print ">     Authentication failed."
+        else:
+            print ">     OK."
+            return username, password
 
     print _login_message
 
@@ -243,8 +242,9 @@ def github_authenticate():
         sys.exit(1)
 
 def review(n, upload=False, reference=None):
+    config = load_config_file()
     if upload:
-        username, password = github_authenticate()
+        username, password = github_authenticate(config)
     tmpdir = mkdtemp(prefix='sympy-bot-tmp')
     print "> Working directory: %s" % tmpdir
     pull = github_get_pull_request(n)
@@ -263,15 +263,19 @@ def review(n, upload=False, reference=None):
     open("%s/branches" % tmpdir, "w").write(
         "https://github.com/sympy/sympy.git master\n%s %s" % (repo, branch))
     print "> Cloning sympy/sympy master"
+
+    if not reference:
+        reference = config.get('reference')
+
     if reference:
-        cmd("cd %s; git clone --reference %s git://github.com/sympy/sympy.git "\
-                % (tmpdir, reference))
+        reference = os.path.abspath(os.path.expanduser(os.path.expandvars(reference)))
+        cmd("cd %s; git clone --reference %s git://github.com/sympy/sympy.git " % (tmpdir, reference))
     else:
         cmd("cd %s; git clone git://github.com/sympy/sympy.git " % tmpdir)
+
     print "> Running sympy-next"
     cmd("cp other/sympy-next.py %s/" % tmpdir)
-    cmd("cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose" \
-        % tmpdir)
+    cmd("cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose" % tmpdir)
     print "Done."
     print
     report_file = "%s/out/report.html" % tmpdir
