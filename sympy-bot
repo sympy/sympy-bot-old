@@ -29,10 +29,16 @@ Commands:
     parser.add_option("-n", "--no-upload",
             action="store_false", dest="upload",
             default=True, help="Do not upload the results into the pull request")
-    parser.add_option("--reference",
+    parser.add_option("-r", "--reference",
             action="store", type="str", dest="reference",
             default=None, help="Passes this to 'git clone <sympy repo>'")
     options, args = parser.parse_args()
+
+    if options.reference is not None:
+        reference = os.path.abspath(os.path.expanduser(os.path.expandvars(options.reference)))
+    else:
+        reference = None
+
     if len(args) == 1:
         arg, = args
         if arg == "list":
@@ -43,8 +49,7 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(int(arg2), upload=options.upload,
-                    reference=options.reference)
+            review(int(arg2), upload=options.upload, reference=reference)
             return
         print "Unknown command"
         sys.exit(1)
