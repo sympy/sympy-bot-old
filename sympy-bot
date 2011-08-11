@@ -30,7 +30,7 @@ Commands:
   review NNN            Reviews the pull request NNN
   list                  Lists all open pull requests
   list-numbers          Lists only the numbers of open pull requests;
-                        Suitable for piping into xargs sympy-bot review""")
+                        Suitable for piping into 'xargs -L 1 sympy-bot review'""")
     parser.add_option("-n", "--no-upload",
             action="store_false", dest="upload",
             default=True, help="Do not upload the results into the pull request")
