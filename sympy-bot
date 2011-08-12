@@ -319,11 +319,14 @@ def review(n, upload=False, reference=None):
     log_file = "%s/out/log" % tmpdir
     print "View report at: %s" % report_file
     print "View log at: %s" % log_file
-    print "> Uploading test results"
     report = open(report_file).read()
-    report_url = pastehtml_upload(report, input_type="html")
-    print "> Uploaded report at: %s" % report_url
-    review = formulate_review(report_url, report, user)
+    if upload:
+        print "> Uploading test results"
+        report_url = pastehtml_upload(report, input_type="html")
+        print "> Uploaded report at: %s" % report_url
+        review = formulate_review(report_url, report, user)
+    else:
+        review = formulate_review("(report was not uploaded)", report, user)
     print "> Review:"
     print review
     if upload:
