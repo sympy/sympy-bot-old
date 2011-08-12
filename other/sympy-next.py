@@ -3,7 +3,7 @@
 # Tool to aggeregrate several branches, automatically merge them (if possible)
 # and create statistics about unit tests.
 #
-# usage: sympy-next.py <options>                          
+# usage: sympy-next.py <options>
 #        --help            -h  This message
 #        --verbose         -v  Enable verbose output
 #        --no-test         -n  Only recreate output
@@ -49,6 +49,7 @@ def read_branchfile(f):
 
 def run_tests():
     logit("Running unit tests.")
+    logit("Command: " + ' '.join(command))
     out = subprocess.Popen(command, stdout=subprocess.PIPE).stdout
 
     report = []

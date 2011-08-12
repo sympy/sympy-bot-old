@@ -37,6 +37,10 @@ Commands:
     parser.add_option("-r", "--reference",
             action="store", type="str", dest="reference",
             default=None, help="Passes this to 'git clone <sympy repo>'")
+    parser.add_option("-t", "--testcommand", dest="testcommand",
+            default=None, help="Command to run tests with.  "
+            "Use this to run the tests with a different version of Python than "
+            "the default, like './sympy-bot --t 'python2.5 setup.py test'.")
     options, args = parser.parse_args()
 
     if len(args) == 1:
@@ -52,7 +56,8 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(int(arg2), upload=options.upload, reference=options.reference)
+            review(int(arg2), upload=options.upload, reference=options.reference,
+                testcommand=options.testcommand)
             return
         print "Unknown command"
         sys.exit(1)
@@ -244,42 +249,49 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
 def github_authenticate(config):
-    try:
-        username = config['user'] + '/token'
-        password = config['token']
-    except KeyError:
-        pass
+    def get_password():
+        try:
+            while True:
+                password = getpass("Password: ")
+
+                try:
+                    print "> Checking username and password ..."
+                    github_check_authentication(username, password)
+                except AuthenticationFailed:
+                    print ">     Authentication failed."
+                else:
+                    print ">     OK."
+                    return password
+        except KeyboardInterrupt:
+            print "\n> Quitting on signal SIGINT."
+            sys.exit(1)
+
+    if 'user' in config:
+        username = config['user']
     else:
+        username = raw_input("Username: ")
+
+    if 'token' in config:
+        username = username + '/token'
+        password = config['token']
+
         try:
             print "> Checking username and password ..."
             github_check_authentication(username, password)
         except AuthenticationFailed:
             print ">     Authentication failed."
-        else:
-            print ">     OK."
-            return username, password
+            password = get_password()
+    else:
+        password = get_password()
 
     print _login_message
 
-    try:
-        username = raw_input("Username: ")
-        while True:
-            password = getpass("Password: ")
+    return username, password
 
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-            else:
-                print ">     OK."
-                return username, password
-    except KeyboardInterrupt:
-        print "\n> Quitting on signal SIGINT."
-        sys.exit(1)
-
-def review(n, upload=False, reference=None):
+def review(n, upload=False, reference=None, testcommand=None):
     config = load_config_file()
+    if not testcommand:
+        testcommand = config.get("testcommand", "./setup.py test")
     if upload:
         username, password = github_authenticate(config)
     tmpdir = mkdtemp(prefix='sympy-bot-tmp')
@@ -312,18 +324,22 @@ def review(n, upload=False, reference=None):
 
     print "> Running sympy-next"
     cmd("cp other/sympy-next.py %s/" % tmpdir)
-    cmd("cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose" % tmpdir)
+    cmd('cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose --command "%s"'
+        % (tmpdir, testcommand))
     print "Done."
     print
     report_file = "%s/out/report.html" % tmpdir
     log_file = "%s/out/log" % tmpdir
     print "View report at: %s" % report_file
     print "View log at: %s" % log_file
-    print "> Uploading test results"
     report = open(report_file).read()
-    report_url = pastehtml_upload(report, input_type="html")
-    print "> Uploaded report at: %s" % report_url
-    review = formulate_review(report_url, report, user)
+    if upload:
+        print "> Uploading test results"
+        report_url = pastehtml_upload(report, input_type="html")
+        print "> Uploaded report at: %s" % report_url
+        review = formulate_review(report_url, report, user)
+    else:
+        review = formulate_review("(report was not uploaded)", report, user)
     print "> Review:"
     print review
     if upload:

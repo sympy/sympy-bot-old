@@ -46,9 +46,14 @@ adding the following lines to it::
     user = "your user name"
     token = "your GitHub API token"
     reference = "path to a local clone of SymPy's repository"
+    testcommand = "command to run tests with (default is './setup.py test')
 
-Note that with configuration file you can use only token-based GitHub authentication
-mechanism (this is for your safety, but anyway make sure that the configuration file
-has proper permissions assigned, e.g. 600). If you don't want to use a reference to
-a local clone of SymPy's repository, then simply don't include ``reference`` field in
-the configuration file or leave it's value empty (``reference = ""``).
+Note that with configuration file you can use only token-based GitHub
+authentication mechanism (this is for your safety, but anyway make sure
+that the configuration file has proper permissions assigned, e.g. 600).
+You may leave any value that you don't want to include empty, and the
+default will be used.  If you supply a username and not an API token,
+then sympy-bot will ask you for your GitHub password on each invocation.
+
+You can get your GitHub API token by going to
+https://github.com/account/admin.
