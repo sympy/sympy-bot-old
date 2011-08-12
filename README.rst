@@ -46,6 +46,8 @@ adding the following lines to it::
     user = "your user name"
     token = "your GitHub API token"
     reference = "path to a local clone of SymPy's repository"
+    testcommand = "command to run tests with (default is './setup.py test')
+
 Note that with configuration file you can use only token-based GitHub
 authentication mechanism (this is for your safety, but anyway make sure
 that the configuration file has proper permissions assigned, e.g. 600).
