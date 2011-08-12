@@ -54,3 +54,6 @@ that the configuration file has proper permissions assigned, e.g. 600).
 You may leave any value that you don't want to include empty, and the
 default will be used.  If you supply a username and not an API token,
 then sympy-bot will ask you for your GitHub password on each invocation.
+
+You can get your GitHub API token by going to
+https://github.com/account/admin.
