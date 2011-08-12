@@ -262,8 +262,8 @@ def github_authenticate(config):
     print _login_message
 
     try:
+        username = raw_input("Username: ")
         while True:
-            username = raw_input("Username: ")
             password = getpass("Password: ")
 
             try:
