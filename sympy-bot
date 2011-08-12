@@ -244,39 +244,44 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
 def github_authenticate(config):
-    try:
-        username = config['user'] + '/token'
-        password = config['token']
-    except KeyError:
-        pass
+    def get_password():
+        try:
+            while True:
+                password = getpass("Password: ")
+
+                try:
+                    print "> Checking username and password ..."
+                    github_check_authentication(username, password)
+                except AuthenticationFailed:
+                    print ">     Authentication failed."
+                else:
+                    print ">     OK."
+                    return password
+        except KeyboardInterrupt:
+            print "\n> Quitting on signal SIGINT."
+            sys.exit(1)
+
+    if 'user' in config:
+        username = config['user']
     else:
+        username = raw_input("Username: ")
+
+    if 'token' in config:
+        username = username + '/token'
+        password = config['token']
+
         try:
             print "> Checking username and password ..."
             github_check_authentication(username, password)
         except AuthenticationFailed:
             print ">     Authentication failed."
-        else:
-            print ">     OK."
-            return username, password
+            password = get_password()
+    else:
+        password = get_password()
 
     print _login_message
 
-    try:
-        username = raw_input("Username: ")
-        while True:
-            password = getpass("Password: ")
-
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-            else:
-                print ">     OK."
-                return username, password
-    except KeyboardInterrupt:
-        print "\n> Quitting on signal SIGINT."
-        sys.exit(1)
+    return username, password
 
 def review(n, upload=False, reference=None):
     config = load_config_file()
