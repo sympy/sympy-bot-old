@@ -56,8 +56,11 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(int(arg2), upload=options.upload, reference=options.reference,
-                testcommand=options.testcommand)
+            try:
+                review(int(arg2), upload=options.upload, reference=options.reference, testcommand=options.testcommand)
+            except KeyboardInterrupt:
+                print "\n> Quitting on signal SIGINT."
+                sys.exit(1)
             return
         print "Unknown command"
         sys.exit(1)
@@ -250,41 +253,40 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 
 def github_authenticate(config):
     def get_password():
-        try:
-            while True:
-                password = getpass("Password: ")
+        while True:
+            password = getpass("Password: ")
 
-                try:
-                    print "> Checking username and password ..."
-                    github_check_authentication(username, password)
-                except AuthenticationFailed:
-                    print ">     Authentication failed."
-                else:
-                    print ">     OK."
-                    return password
-        except KeyboardInterrupt:
-            print "\n> Quitting on signal SIGINT."
-            sys.exit(1)
+            try:
+                print "> Checking username and password ..."
+                github_check_authentication(username, password)
+            except AuthenticationFailed:
+                print ">     Authentication failed."
+            else:
+                print ">     OK."
+                return password
 
     if 'user' in config:
         username = config['user']
-    else:
-        username = raw_input("Username: ")
 
-    if 'token' in config:
-        username = username + '/token'
-        password = config['token']
+        if 'token' in config:
+            username = username + '/token'
+            password = config['token']
 
-        try:
-            print "> Checking username and password ..."
-            github_check_authentication(username, password)
-        except AuthenticationFailed:
-            print ">     Authentication failed."
+            try:
+                print "> Checking username and password ..."
+                github_check_authentication(username, password)
+            except AuthenticationFailed:
+                print ">     Authentication failed."
+                password = get_password()
+            else:
+                print ">     OK."
+        else:
             password = get_password()
     else:
-        password = get_password()
+        print _login_message
 
-    print _login_message
+        username = raw_input("Username: ")
+        password = get_password()
 
     return username, password
 
