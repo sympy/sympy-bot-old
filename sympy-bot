@@ -56,8 +56,11 @@ Commands:
     elif len(args) == 2:
         arg1, arg2 = args
         if arg1 == "review":
-            review(int(arg2), upload=options.upload, reference=options.reference,
-                testcommand=options.testcommand)
+            try:
+                review(int(arg2), upload=options.upload, reference=options.reference, testcommand=options.testcommand)
+            except KeyboardInterrupt:
+                print "\n> Quitting on signal SIGINT."
+                sys.exit(1)
             return
         print "Unknown command"
         sys.exit(1)
@@ -250,21 +253,17 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 
 def github_authenticate(config):
     def get_password():
-        try:
-            while True:
-                password = getpass("Password: ")
+        while True:
+            password = getpass("Password: ")
 
-                try:
-                    print "> Checking username and password ..."
-                    github_check_authentication(username, password)
-                except AuthenticationFailed:
-                    print ">     Authentication failed."
-                else:
-                    print ">     OK."
-                    return password
-        except KeyboardInterrupt:
-            print "\n> Quitting on signal SIGINT."
-            sys.exit(1)
+            try:
+                print "> Checking username and password ..."
+                github_check_authentication(username, password)
+            except AuthenticationFailed:
+                print ">     Authentication failed."
+            else:
+                print ">     OK."
+                return password
 
     if 'user' in config:
         username = config['user']
