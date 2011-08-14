@@ -267,23 +267,26 @@ def github_authenticate(config):
 
     if 'user' in config:
         username = config['user']
-    else:
-        username = raw_input("Username: ")
 
-    if 'token' in config:
-        username = username + '/token'
-        password = config['token']
+        if 'token' in config:
+            username = username + '/token'
+            password = config['token']
 
-        try:
-            print "> Checking username and password ..."
-            github_check_authentication(username, password)
-        except AuthenticationFailed:
-            print ">     Authentication failed."
+            try:
+                print "> Checking username and password ..."
+                github_check_authentication(username, password)
+            except AuthenticationFailed:
+                print ">     Authentication failed."
+                password = get_password()
+            else:
+                print ">     OK."
+        else:
             password = get_password()
     else:
-        password = get_password()
+        print _login_message
 
-    print _login_message
+        username = raw_input("Username: ")
+        password = get_password()
 
     return username, password
 
