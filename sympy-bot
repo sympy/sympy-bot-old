@@ -187,12 +187,13 @@ def list_pull_requests(numbers_only=False):
         print "      Author: %s" % author
         print "      Date  : %s" % time.ctime(last_change)
 
-def formulate_review(report_url, report, user):
+def formulate_review(report_url, report, user, testcommand):
 
     # Attempt to infer the status of the review from the report.
     # XXX: This should be refactored into the sympy-next script, but it's kind
     # of complicated and I'm kind of lazy.
     # Anyway, this is very hackish and dependent on the html output of sympy-next.
+
     user = user.get("login", None)
     if user:
         atuser = "@"+user+": "
@@ -214,13 +215,20 @@ See the report for a list of the merge conflicts.""" % atuser
 
 Please double check this against the test report given above before merging with master."""
 
+    if not testcommand:
+        testcommandstr = ""
+    else:
+        testcommandstr = """
+**Note** A custom test command was used: %s
+""" % testcommand
+
     s = """\
 Test results html report: %s
-
+%s
 Summary: %s
 
 Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
-       (report_url, summary)
+       (report_url, testcommandstr, summary)
 
     return s
 
@@ -338,9 +346,9 @@ def review(n, upload=False, reference=None, testcommand=None):
         print "> Uploading test results"
         report_url = pastehtml_upload(report, input_type="html")
         print "> Uploaded report at: %s" % report_url
-        review = formulate_review(report_url, report, user)
+        review = formulate_review(report_url, report, user, testcommand)
     else:
-        review = formulate_review("(report was not uploaded)", report, user)
+        review = formulate_review("(report was not uploaded)", report, user, testcommand)
     print "> Review:"
     print review
     if upload:
