@@ -314,6 +314,10 @@ def github_authenticate(config):
 
     return username, password
 
+def get_sympy_next_path():
+    bot_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(bot_dir, "other/sympy-next.py")
+
 def review(n, config):
     if config.upload:
         username, password = github_authenticate(config)
@@ -343,7 +347,7 @@ def review(n, config):
         cmd(format_repo("cd %s; git clone git://github.com/{repo}.git") % tmpdir)
 
     print "> Running sympy-next"
-    cmd("cp other/sympy-next.py %s/" % tmpdir)
+    cmd("cp %s %s/" % (get_sympy_next_path(), tmpdir))
     cmd('cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose --command "%s"'
         % (tmpdir, config.testcommand))
     print "Done."
