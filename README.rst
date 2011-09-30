@@ -31,17 +31,17 @@ connections) by passing a ``--reference`` option to sympy-bot::
 
     ./sympy-bot --reference ~/repo/git/sympy review 268
 
-This gets passed too git, see ``git clone --help`` for more information. Then
+This gets passed to git, see ``git clone --help`` for more information. Then
 sympy-bot starts testing the branch immediately, even if you have a slower
 connections.
 
 Configuration
 -------------
 
-You can avoid providing your username and password, and possibly a reference
-to a local clone of SymPy's repository, every time when you use SymPy Bot by
-creating a configuration file for SymPy Bot at ``~/.sympy/sympy-bot.conf``
-and adding the following lines to it::
+You can avoid providing your username and password, give a reference to
+a local clone of SymPy's repository, or use a custom test command every
+time when you use SymPy Bot by creating a configuration file for SymPy
+Bot at ``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
 
     user = "your user name"
     token = "your GitHub API token"

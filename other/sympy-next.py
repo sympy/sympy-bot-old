@@ -126,8 +126,9 @@ def do_test(branches, name):
                 report.append((source, branch, "fetch", None))
                 continue
             if git("Merge branch " + branch, "merge", "FETCH_HEAD"):
-                gitn("Error merging branch %s -- skipping." % branch,
-                     "merge", "--abort")
+                gitn("Error merging branch %s.  See log for merge conflicts." % branch,
+                     "diff")
+                gitn("Skipping...", "merge", "--abort")
                 if first:
                     logit('Cannot merge into master -- dropping.')
                     report.append((source, branch, "merge", None))

@@ -214,12 +214,13 @@ def list_pull_requests(numbers_only=False):
         print "      Author: %s" % author
         print "      Date  : %s" % time.ctime(last_change)
 
-def formulate_review(report_url, report, user):
+def formulate_review(report_url, report, user, testcommand):
 
     # Attempt to infer the status of the review from the report.
     # XXX: This should be refactored into the sympy-next script, but it's kind
     # of complicated and I'm kind of lazy.
     # Anyway, this is very hackish and dependent on the html output of sympy-next.
+
     user = user.get("login", None)
     if user:
         atuser = "@"+user+": "
@@ -228,7 +229,8 @@ def formulate_review(report_url, report, user):
     if "> conflicts </td>" in report:
         summary = """There were merge conflicts; could not test the branch.
 
-%sPlease rebase or merge your branch with master.""" % atuser
+%sPlease rebase or merge your branch with master.  \
+See the report for a list of the merge conflicts.""" % atuser
     elif "> fetch </td>" in report:
         summary = """Could not fetch the branch.  Please run the sympy-bot tests again.""" % atuser
     elif "> FAIL </td>" in report:
@@ -240,13 +242,20 @@ def formulate_review(report_url, report, user):
 
 Please double check this against the test report given above before merging with master."""
 
+    if not testcommand:
+        testcommandstr = ""
+    else:
+        testcommandstr = """
+**Note** A custom test command was used: %s
+""" % testcommand
+
     s = """\
 Test results html report: %s
-
+%s
 Summary: %s
 
 Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
-       (report_url, summary)
+       (report_url, testcommandstr, summary)
 
     return s
 
@@ -361,9 +370,9 @@ def review(n, config):
         print "> Uploading test results"
         report_url = pastehtml_upload(report, input_type="html")
         print "> Uploaded report at: %s" % report_url
-        review = formulate_review(report_url, report, user)
+        review = formulate_review(report_url, report, user, testcommand)
     else:
-        review = formulate_review("(report was not uploaded)", report, user)
+        review = formulate_review("(report was not uploaded)", report, user, testcommand)
     print "> Review:"
     print review
     if config.upload:
