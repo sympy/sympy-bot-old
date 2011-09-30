@@ -40,13 +40,14 @@ Configuration
 
 You can avoid providing your username and password, and possibly a reference
 to a local clone of SymPy's repository, every time when you use SymPy Bot by
-creating a configuration file for SymPy Bot at ``~/.sympy/sympy-bot.conf`` and
-adding the following lines to it::
+creating a configuration file for SymPy Bot at ``~/.sympy/sympy-bot.conf``
+and adding the following lines to it::
 
     user = "your user name"
     token = "your GitHub API token"
     reference = "path to a local clone of SymPy's repository"
-    testcommand = "command to run tests with (default is './setup.py test')
+    repository = "remote SymPy's repository (default is sympy/sympy)"
+    testcommand = "command to run tests with (default is './setup.py test')"
 
 Note that with configuration file you can use only token-based GitHub
 authentication mechanism (this is for your safety, but anyway make sure
@@ -55,5 +56,13 @@ You may leave any value that you don't want to include empty, and the
 default will be used.  If you supply a username and not an API token,
 then sympy-bot will ask you for your GitHub password on each invocation.
 
-You can get your GitHub API token by going to
-https://github.com/account/admin.
+You can get your GitHub API token by going to https://github.com/account/admin.
+
+Foreign repositories
+--------------------
+
+SymPy Bot can be also used with other remote repository than sympy/sympy.
+You can change the remote with ``-R`` flag to sympy-bot or by setting
+``repository`` in configuration file. The new remote doesn't have to be
+SymPy's repository, but any repository on GitHub. Note that in this case
+you man need to setup customized ``testcommand``.
