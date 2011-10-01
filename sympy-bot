@@ -370,9 +370,10 @@ def review(n, config):
         print "> Uploading test results"
         report_url = pastehtml_upload(report, input_type="html")
         print "> Uploaded report at: %s" % report_url
-        review = formulate_review(report_url, report, user, testcommand)
+        review = formulate_review(report_url, report, user, config.testcommand)
     else:
-        review = formulate_review("(report was not uploaded)", report, user, testcommand)
+        review = formulate_review("(report was not uploaded)", report, user,
+                config.testcommand)
     print "> Review:"
     print review
     if config.upload:
