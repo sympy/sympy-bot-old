@@ -22,14 +22,18 @@
 
 import sys
 import os
+import re
 import time
 import subprocess
 import pickle
+import shutil
 from optparse import OptionParser
 
 picklef = "reports"
 verbose = None
 command = None
+translate = None
+interpreter = None
 log = None
 
 def logit(message):
@@ -48,9 +52,10 @@ def read_branchfile(f):
     return ret
 
 def run_tests():
+    cmd = [interpreter] + command
     logit("Running unit tests.")
-    logit("Command: " + ' '.join(command))
-    out = subprocess.Popen(command, stdout=subprocess.PIPE).stdout
+    logit("Command: " + ' '.join(cmd))
+    out = subprocess.Popen(cmd, stdout=subprocess.PIPE).stdout
 
     report = []
     def my_join(file):
@@ -76,7 +81,6 @@ def run_tests():
         yield buf
 
     for line in my_split(my_join(out)):
-        import re
         good = None
         if line.find('[OK]') != -1:
             good = True
@@ -89,6 +93,25 @@ def run_tests():
         report.append((line.split('[')[0].split()[0], good))
 
     return report
+
+py3k = "sympy-py3k"
+
+def pre_python3():
+    if translate:
+        logit("Translating to Python 3 ... (this may take a few minutes)")
+
+        if subprocess.call([interpreter, "bin/use2to3"], stdout=log, stderr=log) != 0:
+            raise RuntimeError("Can't translate to Python 3.")
+
+        logit("Entering %s" % py3k)
+        os.chdir(py3k)
+
+def post_python3():
+    if translate:
+        logit("Leaving %s" % py3k)
+        os.chdir("..")
+        logit("Removing %s" % py3k)
+        shutil.rmtree(py3k, True)
 
 def do_test(branches, name):
     def git(message, *args):
@@ -126,8 +149,7 @@ def do_test(branches, name):
                 report.append((source, branch, "fetch", None))
                 continue
             if git("Merge branch " + branch, "merge", "FETCH_HEAD"):
-                gitn("Error merging branch %s.  See log for merge conflicts." % branch,
-                     "diff")
+                gitn("Error merging branch %s. See log for merge conflicts." % branch, "diff")
                 gitn("Skipping...", "merge", "--abort")
                 if first:
                     logit('Cannot merge into master -- dropping.')
@@ -141,7 +163,9 @@ def do_test(branches, name):
 
         # run the tests
         if cantest:
+            pre_python3()
             tests.append(run_tests())
+            post_python3()
         else:
             assert len(todo) == 0
 
@@ -306,6 +330,20 @@ def create_report(merges, tests, stamp):
 
     write_report(reports)
 
+def get_python_version(options):
+    cmd = [options.interpreter, "-c", "import sys; sys.stdout.write(str(sys.version_info[:2]))"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, _ = proc.communicate()
+
+    if proc.returncode == 0:
+        match = re.match("\((\d+), (\d+)\)", output)
+
+        if match is not None:
+            major, minor = match.groups()
+            return int(major), int(minor)
+
+    raise RuntimeError("unable to run '%s'" % options.interpreter)
+
 # MAIN PROGRAM
 
 def main():
@@ -331,7 +369,10 @@ def main():
         help="Where to create output")
     parser.add_option("-c", "--command",
         action="store", type="str", default=None, dest="command",
-        help="Command to run for testing")
+        help="Command to run tests with")
+    parser.add_option("-i", "--interpreter",
+        action="store", type="str", default=None, dest="interpreter",
+        help="Python interpreter to run test with")
     parser.add_option("-r", "--repo",
         action="store", type="str", default=None, dest="repo",
         help="Repository to use for testing")
@@ -341,7 +382,12 @@ def main():
     if options.command is not None:
         options.command = options.command.split()
     else:
-        options.command = ['./setup.py', 'test']
+        options.command = ['setup.py', 'test']
+
+    if options.interpreter is None:
+        options.interpreter = 'python'
+
+    major, _ = get_python_version(options)
 
     if options.outdir is not None:
         options.outdir = os.path.abspath(options.outdir)
@@ -371,6 +417,10 @@ def main():
     verbose = options.verbose
     global command
     command = options.command
+    global interpreter
+    interpreter = options.interpreter
+    global translate
+    translate = (major == 3)
 
     if options.no_test:
         os.chdir(options.outdir)

@@ -47,7 +47,8 @@ Bot at ``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
     token = "your GitHub API token"
     reference = "path to a local clone of SymPy's repository"
     repository = "remote SymPy's repository (default is sympy/sympy)"
-    testcommand = "command to run tests with (default is './setup.py test')"
+    interpreter = "interpreter to run tests with (default is 'python')"
+    testcommand = "command to run tests with (default is 'setup.py test')"
 
 Note that with configuration file you can use only token-based GitHub
 authentication mechanism (this is for your safety, but anyway make sure
