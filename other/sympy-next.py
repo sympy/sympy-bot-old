@@ -25,12 +25,12 @@ import os
 import time
 import subprocess
 import pickle
-import getopt
+from optparse import OptionParser
 
-# options
-verbose = False                  # --verbose
 picklef = "reports"
-command = ['./setup.py', 'test'] # --command
+verbose = None
+command = None
+log = None
 
 def logit(message):
     print >> log, '>', message
@@ -156,7 +156,6 @@ def do_test(branches, name):
 
 def write_report(reports):
     # create a html report
-    allstamps   = [t[0] for t in reports]
     allbranches = set()
     alltests    = set()
     for t in reports:
@@ -307,108 +306,99 @@ def create_report(merges, tests, stamp):
 
     write_report(reports)
 
-
 # MAIN PROGRAM
 
-def usage(message):
-    if None != message:
-        print 'error:', message
-    print 'usage: %s <options>' % os.path.basename(__file__)
-    print '       --help            -h  This message'
-    print '       --verbose         -v  Enable verbose output'
-    print '       --no-test         -n  Only recreate output'
-    print '       --stamp=name      -s  Identifier for this run [generated from date]'
-    print '       --logfile=name    -l  Name of logfile'
-    print '       --branchfile=file -b  File to get branches from'
-    print '       --outdir=dir      -o  Where to create output'
-    print '       --command=cmd     -c  Command to run for testing'
-    print '       --repo=dir        -r  Repository to use for testing'
-    sys.exit(1)
+def main():
+    parser = OptionParser()
 
-if __name__ == '__main__':
-    stamp      = None
-    logfile    = None
-    branchfile = None
+    parser.add_option("-v", "--verbose",
+        action="store_true", default=False, dest="verbose",
+        help="Enable verbose output")
+    parser.add_option("-n", "--no-test",
+        action="store_true", default=False, dest="no_test",
+        help="Only recreate output")
+    parser.add_option("-s", "--stamp",
+        action="store", type="str", default=None, dest="stamp",
+        help="Identifier for this run")
+    parser.add_option("-l", "--logfile",
+        action="store", type="str", default=None, dest="logfile",
+        help="Name of logfile")
+    parser.add_option("-b", "--branchfile",
+        action="store", type="str", default=None, dest="branchfile",
+        help="File to get branches from")
+    parser.add_option("-o", "--outdir",
+        action="store", type="str", default=None, dest="outdir",
+        help="Where to create output")
+    parser.add_option("-c", "--command",
+        action="store", type="str", default=None, dest="command",
+        help="Command to run for testing")
+    parser.add_option("-r", "--repo",
+        action="store", type="str", default=None, dest="repo",
+        help="Repository to use for testing")
 
-    repo       = None
-    branchfile = None
-    outdir     = None
-    no_test    = False
+    options, args = parser.parse_args()
 
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hvns:l:b:o:c:r:',
-                                  ['help', 'verbose', 'no-test',
-                                   'stamp=',
-                                   'logfile=',
-                                   'branchfile=',
-                                   'outdir=',
-                                   'command=',
-                                   'repo='])
-    except getopt.GetoptError, err:
-        usage(err)
+    if options.command is not None:
+        options.command = options.command.split()
+    else:
+        options.command = ['./setup.py', 'test']
 
-    for opt, arg in opts:
-        if opt in ('-v', '--verbose'):
-            verbose = True
-        elif opt in ('-h', '--help'):
-            usage(None)
-        elif opt in ('-n', '--no-test'):
-            no_test = True
-        elif opt in ('-s', '--stamp'):
-            stamp = arg
-        elif opt in ('-l', '--logfile'):
-            logfile = arg
-        elif opt in ('-b', '--branchfile'):
-            branchfile = arg
-        elif opt in ('-o', '--outdir'):
-            outdir = arg
-        elif opt in ('-c', '--command'):
-            command = arg.split()
-        elif opt in ('-r', '--repo'):
-            repo = arg
-        else:
-            usage('unhandled option: ' + opt)
+    if options.outdir is not None:
+        options.outdir = os.path.abspath(options.outdir)
+    else:
+        print 'You have to specify an output directory.'
+        sys.exit(1)
 
-    if outdir is None:
-        usage('Need to specify an output directory.')
-    outdir = os.path.abspath(outdir)
-
-    if stamp is None:
+    if options.stamp is None:
         # create us a timestamp
         tm = time.localtime(time.time())
-        stamp = "%s%s%s%s%s" % (tm.tm_year, tm.tm_mon,
-                                tm.tm_mday, tm.tm_hour, tm.tm_min)
+        options.stamp = "%s%s%s%s%s" % (tm.tm_year, tm.tm_mon,
+                                        tm.tm_mday, tm.tm_hour, tm.tm_min)
 
-    if logfile is None:
-        logfile = stamp
+    if options.logfile is None:
+        options.logfile = options.stamp
 
-    # create out dir if necessary
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
+    # create output directory if necessary
+    if not os.path.exists(options.outdir):
+        os.mkdir(options.outdir)
 
     # we will log all output to here
-    log = open(os.path.join(outdir, logfile), 'w+')
+    global log
+    log = open(os.path.join(options.outdir, options.logfile), 'w+')
 
-    if no_test:
-        os.chdir(outdir)
+    # TODO: rewrite all this code as a class
+    global verbose
+    verbose = options.verbose
+    global command
+    command = options.command
+
+    if options.no_test:
+        os.chdir(options.outdir)
         write_report(pickle.load(open(picklef, 'rb')))
         sys.exit(0)
 
-    if branchfile is None:
-        usage('Need to specify a branchfile.')
-    branchfile = os.path.abspath(branchfile)
+    if options.branchfile is not None:
+        options.branchfile = os.path.abspath(options.branchfile)
+    else:
+        print "You have to specify a branchfile."
+        sys.exit(1)
 
-    if repo is None:
-        usage('Need to specify a repo.')
-    repo = os.path.abspath(repo)
+    if options.repo is not None:
+        options.repo = os.path.abspath(options.repo)
+    else:
+        print "You have to specify a repo."
+        sys.exit(1)
 
     # find out which branches to test
-    branches = read_branchfile(branchfile)
+    branches = read_branchfile(options.branchfile)
 
     # do the merging and testing
-    os.chdir(repo)
+    os.chdir(options.repo)
     merges, tests = do_test(branches, "next-test")
 
     # create a report
-    os.chdir(outdir)
-    create_report(merges, tests, stamp)
+    os.chdir(options.outdir)
+    create_report(merges, tests, options.stamp)
+
+if __name__ == '__main__':
+    main()
