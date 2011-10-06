@@ -262,12 +262,12 @@ Test results html report: %s
 
     if config.interpreter != default_interpreter:
         report += """
-**Note** A custom interpreter was used: %s
+**Note** A custom interpreter was used: `%s`
 """ % config.interpreter
 
     if config.testcommand != default_testcommand:
         report += """
-**Note** A custom test command was used: %s
+**Note** A custom test command was used: `%s`
 """ % config.testcommand
 
     report += """
