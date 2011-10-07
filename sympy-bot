@@ -20,6 +20,9 @@ class CmdException(Exception):
 class AuthenticationFailed(Exception):
     pass
 
+default_testcommand = "setup.py test"
+default_interpreter = "python"
+
 def main():
     parser = OptionParser(usage="""\
 [options] [commands]
@@ -41,9 +44,16 @@ Commands:
             action="store", type="str", dest="reference",
             default=None, help="Passes this to 'git clone <sympy repo>'")
     parser.add_option("-t", "--testcommand", dest="testcommand",
-            default=None, help="Command to run tests with.  "
-            "Use this to run the tests with a different version of Python than "
-            "the default, like './sympy-bot --t 'python2.5 setup.py test'.")
+            default=None, help="Command to run tests with. "
+            "Use this to run only a subset of tests, rather than the full "
+            "test suite. The default is 'sympy-bot -t 'setup.py test'.")
+    parser.add_option("-i", "--interpreter", dest="interpreter",
+            default=None, help="Select interpreter to run test with. If "
+            "you select Python 3.x, source code will be automatically "
+            "translated using 'bin/use2to3'. The default is 'python'.")
+    parser.add_option("-3", "--python3",
+            action="store_true", default=False, dest="python3",
+            help="Shorthand for 'sympy-bot -i python3")
 
     options, args = parser.parse_args()
     config = load_config_file()
@@ -53,7 +63,12 @@ Commands:
     if options.reference is None:
         options.reference = config.get("reference")
     if options.testcommand is None:
-        options.testcommand = config.get("testcommand", "./setup.py test")
+        options.testcommand = config.get("testcommand", default_testcommand)
+    if options.interpreter is None:
+        options.interpreter = config.get("interpreter", default_interpreter)
+
+    if options.python3:
+        options.interpreter = "python3"
 
     options.user = config.get("user")
     options.token = config.get("token")
@@ -214,8 +229,7 @@ def list_pull_requests(numbers_only=False):
         print "      Author: %s" % author
         print "      Date  : %s" % time.ctime(last_change)
 
-def formulate_review(report_url, report, user, testcommand):
-
+def formulate_review(report_url, report, user, config):
     # Attempt to infer the status of the review from the report.
     # XXX: This should be refactored into the sympy-next script, but it's kind
     # of complicated and I'm kind of lazy.
@@ -242,22 +256,26 @@ See the report for a list of the merge conflicts.""" % atuser
 
 Please double check this against the test report given above before merging with master."""
 
-    if not testcommand:
-        testcommandstr = ""
-    else:
-        testcommandstr = """
-**Note** A custom test command was used: %s
-""" % testcommand
-
-    s = """\
+    report = """\
 Test results html report: %s
-%s
+""" % report_url
+
+    if config.interpreter != default_interpreter:
+        report += """
+**Note** A custom interpreter was used: `%s`
+""" % config.interpreter
+
+    if config.testcommand != default_testcommand:
+        report += """
+**Note** A custom test command was used: `%s`
+""" % config.testcommand
+
+    report += """
 Summary: %s
 
-Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
-       (report_url, testcommandstr, summary)
+Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % summary
 
-    return s
+    return report
 
 def load_config_file():
     conf_file = os.path.expanduser('~/.sympy/sympy-bot.conf')
@@ -324,7 +342,8 @@ def github_authenticate(config):
     return username, password
 
 def get_sympy_next_path():
-    bot_dir = os.path.dirname(os.path.abspath(__file__))
+    bot_file = os.path.realpath(os.path.abspath(__file__))
+    bot_dir = os.path.dirname(bot_file)
     return os.path.join(bot_dir, "other/sympy-next.py")
 
 def review(n, config):
@@ -357,8 +376,8 @@ def review(n, config):
 
     print "> Running sympy-next"
     cmd("cp %s %s/" % (get_sympy_next_path(), tmpdir))
-    cmd('cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose --command "%s"'
-        % (tmpdir, config.testcommand))
+    cmd('cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose --command "%s" --interpreter="%s"'
+        % (tmpdir, config.testcommand, config.interpreter))
     print "Done."
     print
     report_file = "%s/out/report.html" % tmpdir
@@ -370,10 +389,9 @@ def review(n, config):
         print "> Uploading test results"
         report_url = pastehtml_upload(report, input_type="html")
         print "> Uploaded report at: %s" % report_url
-        review = formulate_review(report_url, report, user, config.testcommand)
+        review = formulate_review(report_url, report, user, config)
     else:
-        review = formulate_review("(report was not uploaded)", report, user,
-                config.testcommand)
+        review = formulate_review("(report was not uploaded)", report, user, config)
     print "> Review:"
     print review
     if config.upload:
