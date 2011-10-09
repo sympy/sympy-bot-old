@@ -110,7 +110,7 @@ _repository = None
 def format_repo(string):
     return string.format(repo=_repository)
 
-def cmd(s, capture=False, ok_exit_code_list=None):
+def cmd(s, capture=False, ok_exit_code_list=None, echo=False):
     """
     Executes the command "s".
 
@@ -122,6 +122,8 @@ def cmd(s, capture=False, ok_exit_code_list=None):
     """
     if ok_exit_code_list is None:
         ok_exit_code_list = [0]
+    if echo:
+        print s
     s = expandvars(s)
     if capture:
         p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE,
