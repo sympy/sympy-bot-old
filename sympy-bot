@@ -163,6 +163,7 @@ def load_config_file():
             except (SystemExit, KeyboardInterrupt):
                 raise
             except:
+                print "WARNING: The config file cannot be parsed."
                 pass
             else:
                 print "> Using %s" % conf_file
