@@ -15,7 +15,7 @@ import time
 
 from utils import (cmd, github_get_pull_request, create_report,
         github_authenticate, pastehtml_upload,
-        github_add_comment_to_pull_request, list_pull_requests)
+        github_add_comment_to_pull_request, list_pull_requests, format_repo)
 from testrunner import run_tests
 
 default_testcommand = "setup.py test"
@@ -71,17 +71,13 @@ Commands:
     options.user = config.get("user")
     options.token = config.get("token")
 
-    # XXX: temporary solution until the code is reorganized into a class
-    global _repository
-    _repository = options.repository
-
     if len(args) == 1:
         arg, = args
         if arg == "list":
-            list_pull_requests(_repository)
+            list_pull_requests(options.repository)
             return
         elif arg == "list-numbers":
-            list_pull_requests(_repository, numbers_only=True)
+            list_pull_requests(options.repository, numbers_only=True)
             return
         print "Unknown command"
         sys.exit(1)
@@ -102,11 +98,6 @@ Commands:
         print "Too many arguments"
         sys.exit(1)
     parser.print_help()
-
-_repository = None
-
-def format_repo(string):
-    return string.format(repo=_repository)
 
 def formulate_review(report_url, report_status, user, config):
     user = user.get("login", None)
@@ -176,7 +167,7 @@ def review(n, config):
         username, password = github_authenticate(config)
     tmpdir = mkdtemp(prefix='sympy-bot-tmp')
     print "> Working directory: %s" % tmpdir
-    pull = github_get_pull_request(_repository, n)
+    pull = github_get_pull_request(config.repository, n)
     assert pull['number'] == n
     print "> Reviewing pull request #%d" % n
     repo = pull['head']['repository']['url']
@@ -189,16 +180,18 @@ def review(n, config):
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
 
-    print format_repo("> Cloning {repo} master")
+    print format_repo("> Cloning {repo} master", config.repository)
 
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
-        cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git") % (tmpdir, reference))
+        cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
     else:
-        cmd(format_repo("cd %s; git clone git://github.com/{repo}.git") % tmpdir)
+        cmd(format_repo("cd %s; git clone git://github.com/{repo}.git",
+            config.repository) % tmpdir)
 
     print "> Testing..."
-    result = run_tests(format_repo("https://github.com/{repo}.git"),
+    result = run_tests(format_repo("https://github.com/{repo}.git",
+        config.repository),
             repo, branch, tmpdir + "/sympy", config.testcommand,
             config.interpreter, config.python3)
     print "Done."
@@ -228,10 +221,10 @@ def review(n, config):
     print review
     if config.upload:
         print "> Uploading the review to the GitHub pull request ..."
-        github_add_comment_to_pull_request(_repository, n, review,
+        github_add_comment_to_pull_request(config.repository, n, review,
                 username, password)
         print ">     Done."
-        print format_repo("> Check the results: https://github.com/{repo}/pull/%d") % n
+        print format_repo("> Check the results: https://github.com/{repo}/pull/%d", config.repository) % n
     print "> Merged pull request available in: %s" % tmpdir
 
 if __name__ == "__main__":
