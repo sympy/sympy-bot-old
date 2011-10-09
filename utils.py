@@ -147,10 +147,6 @@ def pastehtml_upload(source, input_type="html"):
 def list_pull_requests(repo, numbers_only=False):
     p = github_get_pull_request_all(repo)
     pulls = []
-    if numbers_only:
-        for pull in p['pulls']:
-            print pull['number']
-        return
     for pull in p['pulls']:
         n = pull['number']
         repo = pull['head']['repository']['url']
@@ -166,17 +162,27 @@ def list_pull_requests(repo, numbers_only=False):
     print "Patches that cannot be merged without conflicts:"
     for created_at, n, repo, branch, author, mergeable in pulls:
         if mergeable: continue
-        print "#%03d: %s %s" % (n, repo, branch)
-        print "      Author   : %s" % author
-        print "      Date     : %s" % time.ctime(created_at)
+        if numbers_only:
+            print n,
+        else:
+            print "#%03d: %s %s" % (n, repo, branch)
+            print "      Author   : %s" % author
+            print "      Date     : %s" % time.ctime(created_at)
+    if numbers_only:
+        print
     print
     print "-"*80
     print "Patches that can be merged without conflicts:"
     for last_change, n, repo, branch, author, mergeable in pulls:
         if not mergeable: continue
-        print "#%03d: %s %s" % (n, repo, branch)
-        print "      Author   : %s" % author
-        print "      Date     : %s" % time.ctime(last_change)
+        if numbers_only:
+            print n,
+        else:
+            print "#%03d: %s %s" % (n, repo, branch)
+            print "      Author   : %s" % author
+            print "      Date     : %s" % time.ctime(last_change)
+    if numbers_only:
+        print
 
 _login_message = """\
 Enter your GitHub username & password or press ^C to quit. The password
