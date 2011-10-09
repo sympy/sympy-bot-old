@@ -144,8 +144,8 @@ def pastehtml_upload(source, input_type="html"):
         s = s[s.find("http", 2):]
     return s
 
-def list_pull_requests(numbers_only=False):
-    p = github_get_pull_request_all()
+def list_pull_requests(repo, numbers_only=False):
+    p = github_get_pull_request_all(repo)
     pulls = []
     if numbers_only:
         for pull in p['pulls']:

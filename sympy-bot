@@ -15,7 +15,7 @@ import time
 
 from utils import (cmd, github_get_pull_request, create_report,
         github_authenticate, pastehtml_upload,
-        github_add_comment_to_pull_request)
+        github_add_comment_to_pull_request, list_pull_requests)
 from testrunner import run_tests
 
 default_testcommand = "setup.py test"
@@ -78,10 +78,10 @@ Commands:
     if len(args) == 1:
         arg, = args
         if arg == "list":
-            list_pull_requests()
+            list_pull_requests(_repository)
             return
         elif arg == "list-numbers":
-            list_pull_requests(numbers_only=True)
+            list_pull_requests(_repository, numbers_only=True)
             return
         print "Unknown command"
         sys.exit(1)
