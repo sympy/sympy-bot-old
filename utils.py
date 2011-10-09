@@ -157,15 +157,17 @@ def list_pull_requests(repo, numbers_only=False):
         branch = pull['head']['ref']
         author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
                                 pull["user"].get("email", ""))
+        mergeable = pull["mergeable"]
         last_change = pull["updated_at"]
         last_change = time.strptime(last_change, "%Y-%m-%dT%H:%M:%SZ")
         last_change = time.mktime(last_change)
-        pulls.append((last_change, n, repo, branch, author))
+        pulls.append((last_change, n, repo, branch, author, mergeable))
     pulls.sort(key=lambda x: x[0])
-    for last_change, n, repo, branch, author in pulls:
+    for last_change, n, repo, branch, author, mergeable in pulls:
         print "#%03d: %s %s" % (n, repo, branch)
-        print "      Author: %s" % author
-        print "      Date  : %s" % time.ctime(last_change)
+        print "      Author   : %s" % author
+        print "      Date     : %s" % time.ctime(last_change)
+        print "      Mergeable: %s" % mergeable
 
 _login_message = """\
 Enter your GitHub username & password or press ^C to quit. The password
