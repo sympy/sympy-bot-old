@@ -27,7 +27,8 @@ def main():
 
 Commands:
 
-  review NNN            Reviews the pull request NNN
+  review NNN            Reviews the pull request NNN; You can specify more than
+                        one number to review several pull requests in a series
   list                  Lists all open pull requests
   list-numbers          Lists only the numbers of open pull requests;
                         Suitable for piping into 'xargs -L 1 sympy-bot review'""")
@@ -81,11 +82,13 @@ Commands:
             return
         print "Unknown command"
         sys.exit(1)
-    elif len(args) == 2:
-        arg1, arg2 = args
+    elif len(args) >= 2:
+        arg1 = args[0]
         if arg1 == "review":
+            nums = [int(x) for x in args[1:]]
             try:
-                review(int(arg2), options)
+                for n in nums:
+                    review(n, options)
             except KeyboardInterrupt:
                 print "\n> Quitting on signal SIGINT."
                 sys.exit(1)
