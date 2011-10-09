@@ -163,11 +163,20 @@ def list_pull_requests(repo, numbers_only=False):
         last_change = time.mktime(last_change)
         pulls.append((last_change, n, repo, branch, author, mergeable))
     pulls.sort(key=lambda x: x[0])
+    print "Patches that cannot be merged without conflicts:"
     for last_change, n, repo, branch, author, mergeable in pulls:
+        if mergeable: continue
         print "#%03d: %s %s" % (n, repo, branch)
         print "      Author   : %s" % author
         print "      Date     : %s" % time.ctime(last_change)
-        print "      Mergeable: %s" % mergeable
+    print
+    print "-"*80
+    print "Patches that can be merged without conflicts:"
+    for last_change, n, repo, branch, author, mergeable in pulls:
+        if not mergeable: continue
+        print "#%03d: %s %s" % (n, repo, branch)
+        print "      Author   : %s" % author
+        print "      Date     : %s" % time.ctime(last_change)
 
 _login_message = """\
 Enter your GitHub username & password or press ^C to quit. The password
