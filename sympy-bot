@@ -120,7 +120,7 @@ See the report for a list of the merge conflicts.""" % atuser
 
 %sPlease fix the test failures.""" % atuser
     elif report_status == "PASSED":
-        summary = """All tests have passed. You can merge with master."""
+        summary = """All tests have passed."""
     else:
         raise ValueError("Unknown report_status")
 
