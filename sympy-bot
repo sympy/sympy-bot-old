@@ -11,14 +11,12 @@ from os.path import expandvars
 import urllib2
 import base64
 from urllib import urlencode
-from getpass import getpass
 import time
 
-class CmdException(Exception):
-    pass
-
-class AuthenticationFailed(Exception):
-    pass
+from utils import (cmd, github_get_pull_request, create_report,
+        github_authenticate, pastehtml_upload,
+        github_add_comment_to_pull_request, list_pull_requests, format_repo)
+from testrunner import run_tests
 
 default_testcommand = "setup.py test"
 default_interpreter = "python"
@@ -29,7 +27,8 @@ def main():
 
 Commands:
 
-  review NNN            Reviews the pull request NNN
+  review NNN            Reviews the pull request NNN; You can specify more than
+                        one number to review several pull requests in a series
   list                  Lists all open pull requests
   list-numbers          Lists only the numbers of open pull requests;
                         Suitable for piping into 'xargs -L 1 sympy-bot review'""")
@@ -73,25 +72,23 @@ Commands:
     options.user = config.get("user")
     options.token = config.get("token")
 
-    # XXX: temporary solution until the code is reorganized into a class
-    global _repository
-    _repository = options.repository
-
     if len(args) == 1:
         arg, = args
         if arg == "list":
-            list_pull_requests()
+            list_pull_requests(options.repository)
             return
         elif arg == "list-numbers":
-            list_pull_requests(numbers_only=True)
+            list_pull_requests(options.repository, numbers_only=True)
             return
         print "Unknown command"
         sys.exit(1)
-    elif len(args) == 2:
-        arg1, arg2 = args
+    elif len(args) >= 2:
+        arg1 = args[0]
         if arg1 == "review":
+            nums = [int(x) for x in args[1:]]
             try:
-                review(int(arg2), options)
+                for n in nums:
+                    review(n, options)
             except KeyboardInterrupt:
                 print "\n> Quitting on signal SIGINT."
                 sys.exit(1)
@@ -105,156 +102,27 @@ Commands:
         sys.exit(1)
     parser.print_help()
 
-_repository = None
-
-def format_repo(string):
-    return string.format(repo=_repository)
-
-def cmd(s, capture=False, ok_exit_code_list=None):
-    """
-    Executes the command "s".
-
-    It raises an exception if the command fails to run.
-
-    capture ... If True, it captures its output and returns it as a string.
-    ok_exit_code_list ... a list of ok exit codes (otherwise cmd() raises an
-    exception)
-    """
-    if ok_exit_code_list is None:
-        ok_exit_code_list = [0]
-    s = expandvars(s)
-    if capture:
-        p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT)
-        output = p.communicate()[0]
-        r = p.returncode
-    else:
-        output = None
-        r = os.system(s)
-    if r not in ok_exit_code_list:
-        raise CmdException("Command '%s' failed with err=%d." % (s, r))
-    return output
-
-def github_get_pull_request_all():
-    """
-    Returns all github pull requests.
-    """
-    return json.load(urlopen(format_repo('http://github.com/api/v2/json/pulls/{repo}')))
-
-def github_get_pull_request(n):
-    """
-    Returns pull request 'n'.
-    """
-    url = format_repo('http://github.com/api/v2/json/pulls/{repo}/%d')
-    data = json.load(urlopen(url % n))
-    return data["pull"]
-
-def github_check_authentication(username, password):
-    """
-    Checks that username & password is valid.
-    """
-    if username.endswith('/token'):
-        user = username[:-6]
-    else:
-        user = username
-
-    request = urllib2.Request("https://github.com/api/v2/json/user/show/%s" % user)
-    base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
-    request.add_header("Authorization", "Basic %s" % base64string)
-    s = json.load(urllib2.urlopen(request))
-    if not ("user" in s and "plan" in s["user"]):
-        raise AuthenticationFailed("invalid username or password")
-
-def github_add_comment_to_pull_request(n, comment, username, password):
-    """
-    Adds a 'comment' to the pull request 'n'.
-
-    Currently it needs github username and password (as strings).
-    """
-    request = urllib2.Request(format_repo("https://github.com/api/v2/json/issues/comment/{repo}/%d") % n, data=urlencode([("comment", comment)]))
-    base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
-    request.add_header("Authorization", "Basic %s" % base64string)
-    s = json.load(urllib2.urlopen(request))
-    assert s["comment"]["body"] == comment
-
-def pastehtml_upload(source, input_type="html"):
-    """
-    Uploads 'source' as an 'input_type' type to pastehtml.com.
-
-    source ....... source of the webpage/text
-    input_type ... txt or html (default html)
-
-    """
-    url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
-    request = urllib2.Request(url % input_type, data=urlencode([("txt", source)]))
-
-    while True:
-        try:
-            result = urllib2.urlopen(request)
-            break
-        except urllib2.HTTPError:
-            print "Error while accessing pastehtml.com, retrying in 2s"
-            time.sleep(2)
-
-    s = result.read()
-    # There is a bug at pastehtml.com, that sometimes it returns:
-    # http://pastehtml.comhttp://pastehtml.com/view/1eddmnp.html
-    # instead of:
-    # http://pastehtml.com/view/1eddmnp.html
-    # So we check if this is the case, and correct it:
-    if s.find("http", 2) != -1:
-        s = s[s.find("http", 2):]
-    return s
-
-def list_pull_requests(numbers_only=False):
-    p = github_get_pull_request_all()
-    pulls = []
-    if numbers_only:
-        for pull in p['pulls']:
-            print pull['number']
-        return
-    for pull in p['pulls']:
-        n = pull['number']
-        repo = pull['head']['repository']['url']
-        branch = pull['head']['ref']
-        author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
-                                pull["user"].get("email", ""))
-        last_change = pull["updated_at"]
-        last_change = time.strptime(last_change, "%Y-%m-%dT%H:%M:%SZ")
-        last_change = time.mktime(last_change)
-        pulls.append((last_change, n, repo, branch, author))
-    pulls.sort(key=lambda x: x[0])
-    for last_change, n, repo, branch, author in pulls:
-        print "#%03d: %s %s" % (n, repo, branch)
-        print "      Author: %s" % author
-        print "      Date  : %s" % time.ctime(last_change)
-
-def formulate_review(report_url, report, user, config):
-    # Attempt to infer the status of the review from the report.
-    # XXX: This should be refactored into the sympy-next script, but it's kind
-    # of complicated and I'm kind of lazy.
-    # Anyway, this is very hackish and dependent on the html output of sympy-next.
-
+def formulate_review(report_url, report_status, user, config):
     user = user.get("login", None)
     if user:
         atuser = "@"+user+": "
     else:
         atuser = ""
-    if "> conflicts </td>" in report:
+    if report_status == "conflicts":
         summary = """There were merge conflicts; could not test the branch.
 
 %sPlease rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts.""" % atuser
-    elif "> fetch </td>" in report:
+    elif report_status == "fetch":
         summary = """Could not fetch the branch.  Please run the sympy-bot tests again.""" % atuser
-    elif "> FAIL </td>" in report:
+    elif report_status == "FAILED":
         summary = """There were test failures.
 
 %sPlease fix the test failures.""" % atuser
+    elif report_status == "PASSED":
+        summary = """All tests have passed."""
     else:
-        summary = """There do not appear to be any problems.
-
-Please double check this against the test report given above before merging with master."""
+        raise ValueError("Unknown report_status")
 
     report = """\
 Test results html report: %s
@@ -289,6 +157,7 @@ def load_config_file():
             except (SystemExit, KeyboardInterrupt):
                 raise
             except:
+                print "WARNING: The config file cannot be parsed."
                 pass
             else:
                 print "> Using %s" % conf_file
@@ -296,62 +165,12 @@ def load_config_file():
 
     return {}
 
-_login_message = """\
-Enter your GitHub username & password or press ^C to quit. The password
-will be kept as a Python variable as long as sympy-bot is running and
-https to authenticate with GitHub, otherwise not saved anywhere else:\
-"""
-
-def github_authenticate(config):
-    def get_password():
-        while True:
-            password = getpass("Password: ")
-
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-            else:
-                print ">     OK."
-                return password
-
-    if config.user:
-        username = config.user
-
-        if config.token:
-            username = username + '/token'
-            password = config.token
-
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-                password = get_password()
-            else:
-                print ">     OK."
-        else:
-            password = get_password()
-    else:
-        print _login_message
-
-        username = raw_input("Username: ")
-        password = get_password()
-
-    return username, password
-
-def get_sympy_next_path():
-    bot_file = os.path.realpath(os.path.abspath(__file__))
-    bot_dir = os.path.dirname(bot_file)
-    return os.path.join(bot_dir, "other/sympy-next.py")
-
 def review(n, config):
     if config.upload:
         username, password = github_authenticate(config)
     tmpdir = mkdtemp(prefix='sympy-bot-tmp')
     print "> Working directory: %s" % tmpdir
-    pull = github_get_pull_request(n)
+    pull = github_get_pull_request(config.repository, n)
     assert pull['number'] == n
     print "> Reviewing pull request #%d" % n
     repo = pull['head']['repository']['url']
@@ -364,41 +183,53 @@ def review(n, config):
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
 
-    open("%s/branches" % tmpdir, "w").write(
-        format_repo("https://github.com/{repo}.git master\n%s %s") % (repo, branch))
-    print format_repo("> Cloning {repo} master")
+    print format_repo("> Cloning {repo} master", config.repository)
 
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
-        cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git") % (tmpdir, reference))
+        cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
     else:
-        cmd(format_repo("cd %s; git clone git://github.com/{repo}.git") % tmpdir)
+        cmd(format_repo("cd %s; git clone git://github.com/{repo}.git",
+            config.repository) % tmpdir)
 
-    print "> Running sympy-next"
-    cmd("cp %s %s/" % (get_sympy_next_path(), tmpdir))
-    cmd('cd %s; ./sympy-next.py -r sympy -b branches -o out -l log --verbose --command "%s" --interpreter="%s"'
-        % (tmpdir, config.testcommand, config.interpreter))
+    print "> Testing..."
+    result = run_tests(format_repo("https://github.com/{repo}.git",
+        config.repository),
+            repo, branch, tmpdir + "/sympy", config.testcommand,
+            config.interpreter, config.python3)
     print "Done."
     print
     report_file = "%s/out/report.html" % tmpdir
     log_file = "%s/out/log" % tmpdir
     print "View report at: %s" % report_file
     print "View log at: %s" % log_file
-    report = open(report_file).read()
+    log = result["log"]
+    report_status = result["result"]
+    bot_file = os.path.realpath(os.path.abspath(__file__))
+    bot_dir = os.path.dirname(bot_file)
+    report = create_report(bot_dir, log, report_status, config.testcommand,
+                config.interpreter, pull["html_url"], n)
+
+    cmd("mkdir -p %s/out" % tmpdir)
+    open(report_file, "w").write(report)
+    open(log_file, "w").write(log)
     if config.upload:
         print "> Uploading test results"
         report_url = pastehtml_upload(report, input_type="html")
         print "> Uploaded report at: %s" % report_url
-        review = formulate_review(report_url, report, user, config)
+        review = formulate_review(report_url, report_status,
+                user, config)
     else:
-        review = formulate_review("(report was not uploaded)", report, user, config)
+        review = formulate_review("(report was not uploaded)",
+                report_status, user, config)
     print "> Review:"
     print review
     if config.upload:
         print "> Uploading the review to the GitHub pull request ..."
-        github_add_comment_to_pull_request(n, review, username, password)
+        github_add_comment_to_pull_request(config.repository, n, review,
+                username, password)
         print ">     Done."
-        print format_repo("> Check the results: https://github.com/{repo}/pull/%d") % n
+        print format_repo("> Check the results: https://github.com/{repo}/pull/%d", config.repository) % n
     print "> Merged pull request available in: %s" % tmpdir
 
 if __name__ == "__main__":
