@@ -230,12 +230,12 @@ def github_authenticate(config):
     return username, password
 
 
-def create_report(log, status, test_command, interpreter,
+def create_report(bot_dir, log, status, test_command, interpreter,
             pullrequest_url, pullrequest_num):
     # Important note: currently the template is using Python string formatting.
     # If we switch to jinja (for example), we need to change '%%' -> '%' in the
     # template.
-    template = open("report_template.html").read()
+    template = open(os.path.join(bot_dir, "report_template.html")).read()
     if status == "PASSED":
         result = '<span class="result_ok">Passed</span>'
     elif status == "FAILED":

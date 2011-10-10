@@ -205,7 +205,9 @@ def review(n, config):
     print "View log at: %s" % log_file
     log = result["log"]
     report_status = result["result"]
-    report = create_report(log, report_status, config.testcommand,
+    bot_file = os.path.realpath(os.path.abspath(__file__))
+    bot_dir = os.path.dirname(bot_file)
+    report = create_report(bot_dir, log, report_status, config.testcommand,
                 config.interpreter, pull["html_url"], n)
 
     cmd("mkdir -p %s/out" % tmpdir)
