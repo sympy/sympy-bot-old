@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}
+Pull Requests
+{% endblock %}
+
+{% block content %}
+<h2>List of Pull Requests</h2>
+<p class="timestamp"><a href="/update/">Update</a>
+(Last update from GitHub: {{ last_update|date:"r" }})</p>
+<p>
+This is a list of pull requests at GitHub. Currently you have to
+update it manually by clicking on 'Update' above.
+</p>
+<p>
+<ul>
+{% for p in pullrequests %}
+    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></li>
+{% endfor %}
+</ul>
+{% if dev_server %}
+    Running in app engine SDK. Refresh this page to generate random pull
+    requests.
+{% endif %}
+</p>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}
+SymPy Pull Request
+{% endblock %}
+
+{% block content %}
+<h2>Pull Request Information</h2>
+<p>
+    Pull request: #{{ p.num }}</br>
+    GitHub URL: <a href="{{ p.url }}">{{ p.url }}</a></br>
+    Repository and branch: {{ p.repo }}
+        <a href="{{ p.repo }}/commits/{{ p.branch }}">{{ p.branch }}</a></br>
+    {% if p.author_name %}
+    Author: {{ p.author_name }}
+        {% if p.author_email %}
+        &lt;{{ p.author_email }}&gt;
+        {% endif %}</br>
+    {% endif %}
+    Mergeable: {{ p.mergeable }}</br>
+    Created at: {{ p.created_at|date:"r" }}</br>
+</p>
+
+<h2>Test Results</h2>
+<ul>
+{% for t in tasks %}
+    <li><a href="/report/{{ t.key }}">{{ forloop.counter }}</a> ({{ t.result }})</li>
+{% endfor %}
+</ul>
+
+<p><pre>{{ log }}</pre></p>
+{% endblock %}
