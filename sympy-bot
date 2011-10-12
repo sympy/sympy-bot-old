@@ -13,8 +13,8 @@ import base64
 from urllib import urlencode
 import time
 
-from utils import (cmd, github_get_pull_request, create_report,
-        github_authenticate, pastehtml_upload,
+from utils import (cmd, github_get_pull_request,
+        github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
         github_add_comment_to_pull_request, list_pull_requests, format_repo)
 from testrunner import run_tests
 
@@ -53,6 +53,11 @@ Commands:
     parser.add_option("-3", "--python3",
             action="store_true", default=False, dest="python3",
             help="Shorthand for 'sympy-bot -i python3")
+    parser.add_option("-s", "--server",
+            action="store", type="str", dest="server",
+            default="http://reviews.sympy.org",
+            help="Server to upload results. Default is "
+            "'http://reviews.sympy.org'")
 
     options, args = parser.parse_args()
     config = load_config_file()
@@ -115,11 +120,11 @@ def formulate_review(report_url, report_status, user, config):
 See the report for a list of the merge conflicts.""" % atuser
     elif report_status == "fetch":
         summary = """Could not fetch the branch.  Please run the sympy-bot tests again.""" % atuser
-    elif report_status == "FAILED":
+    elif report_status == "Failed":
         summary = """There were test failures.
 
 %sPlease fix the test failures.""" % atuser
-    elif report_status == "PASSED":
+    elif report_status == "Passed":
         summary = """All tests have passed."""
     else:
         raise ValueError("Unknown report_status")
@@ -199,23 +204,26 @@ def review(n, config):
             config.interpreter, config.python3)
     print "Done."
     print
-    report_file = "%s/out/report.html" % tmpdir
     log_file = "%s/out/log" % tmpdir
-    print "View report at: %s" % report_file
     print "View log at: %s" % log_file
     log = result["log"]
     report_status = result["result"]
     bot_file = os.path.realpath(os.path.abspath(__file__))
     bot_dir = os.path.dirname(bot_file)
-    report = create_report(bot_dir, log, report_status, config.testcommand,
-                config.interpreter, pull["html_url"], n)
 
     cmd("mkdir -p %s/out" % tmpdir)
-    open(report_file, "w").write(report)
     open(log_file, "w").write(log)
     if config.upload:
         print "> Uploading test results"
-        report_url = pastehtml_upload(report, input_type="html")
+        url_base = config.server
+        data = {
+                "num": n,
+                "result": report_status,
+                "interpreter": config.interpreter,
+                "testcommand": config.testcommand,
+                "log": log,
+                }
+        report_url = reviews_sympy_org_upload(data, url_base)
         print "> Uploaded report at: %s" % report_url
         review = formulate_review(report_url, report_status,
                 user, config)

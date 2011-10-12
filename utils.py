@@ -10,6 +10,8 @@ import time
 import sys
 from getpass import getpass
 
+from jsonrpc import JSONRPCService
+
 class CmdException(Exception):
     pass
 
@@ -144,6 +146,12 @@ def pastehtml_upload(source, input_type="html"):
         s = s[s.find("http", 2):]
     return s
 
+def reviews_sympy_org_upload(data, url_base):
+    s = JSONRPCService(url_base + "/async")
+    r = s.RPC.upload_task(data["num"], data["result"], data["interpreter"],
+            data["testcommand"], data["log"])
+    return r["task_url"]
+
 def list_pull_requests(repo, numbers_only=False):
     p = github_get_pull_request_all(repo)
     pulls = []
@@ -228,26 +236,3 @@ def github_authenticate(config):
         password = get_password()
 
     return username, password
-
-
-def create_report(bot_dir, log, status, test_command, interpreter,
-            pullrequest_url, pullrequest_num):
-    # Important note: currently the template is using Python string formatting.
-    # If we switch to jinja (for example), we need to change '%%' -> '%' in the
-    # template.
-    template = open(os.path.join(bot_dir, "report_template.html")).read()
-    if status == "PASSED":
-        result = '<span class="result_ok">Passed</span>'
-    elif status == "FAILED":
-        result = '<span class="result_fail">Failed</span>'
-    elif status == "conflict":
-        result = "merge conflict"
-    elif status == "fetch":
-        result = "failed to fetch the branch"
-    else:
-        result = "unknown result"
-    return template % {"log": log, "result": result,
-            "testcommand": test_command,
-            "interpreter": interpreter,
-            "pullrequest_url": pullrequest_url,
-            "pullrequest_num": pullrequest_num}
