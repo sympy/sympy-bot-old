@@ -21,10 +21,16 @@ SymPy Pull Request
     Created at: {{ p.created_at|date:"r" }}</br>
 </p>
 
-<h2>Test Results</h2>
+<h2>Tests Summary</h2>
+Click on the individual test to get the full report with logs.
 <ul>
 {% for t in tasks %}
-    <li><a href="/report/{{ t.key }}">{{ forloop.counter }}</a> ({{ t.result }})</li>
+    <li><a href="/report/{{ t.key }}">Test {{ forloop.counter }}</a>
+({% if t.result == "Passed" %}<span class="result_ok">Passed</span>,
+{% else %}<span class="result_fail">{{ t.result }}</span>,
+{% endif %}
+    test command: <span class="code">{{ t.testcommand }}</span>,
+    interpreter: <span class="code">{{ t.interpreter }})</span></li>
 {% endfor %}
 </ul>
 
