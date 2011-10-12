@@ -14,10 +14,10 @@ SymPy Test Report
 {% endif %}
 </p>
 <p>
-    Pull request: <a href="/pullrequest/{{ task.pullrequest.num }}">#{{ task.pullrequest.num }}</a></br>
-    GitHub URL: <a href="{{ task.pullrequest.url }}">{{ task.pullrequest.url }}</a></br>
-    Test command: <span class="code">{{ task.testcommand }}</span></br>
-    Interpreter: <span class="code">{{ task.interpreter }}</span></br>
+    Pull request: <a href="/pullrequest/{{ task.pullrequest.num }}">#{{ task.pullrequest.num }}</a><br/>
+    GitHub URL: <a href="{{ task.pullrequest.url }}">{{ task.pullrequest.url }}</a><br/>
+    Test command: <span class="code">{{ task.testcommand }}</span><br/>
+    Interpreter: <span class="code">{{ task.interpreter }}</span><br/>
     Test report uploaded at: {{ task.uploaded_at }}
 </p>
 

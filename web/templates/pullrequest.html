@@ -7,18 +7,18 @@ SymPy Pull Request
 {% block content %}
 <h2>Pull Request Information</h2>
 <p>
-    Pull request: #{{ p.num }}</br>
-    GitHub URL: <a href="{{ p.url }}">{{ p.url }}</a></br>
+    Pull request: #{{ p.num }}<br/>
+    GitHub URL: <a href="{{ p.url }}">{{ p.url }}</a><br/>
     Repository and branch: {{ p.repo }}
-        <a href="{{ p.repo }}/commits/{{ p.branch }}">{{ p.branch }}</a></br>
+        <a href="{{ p.repo }}/commits/{{ p.branch }}">{{ p.branch }}</a><br/>
     {% if p.author_name %}
     Author: {{ p.author_name }}
         {% if p.author_email %}
         &lt;{{ p.author_email }}&gt;
-        {% endif %}</br>
+        {% endif %}<br/>
     {% endif %}
-    Mergeable: {{ p.mergeable }}</br>
-    Created at: {{ p.created_at|date:"r" }}</br>
+    Mergeable: {{ p.mergeable }}<br/>
+    Created at: {{ p.created_at|date:"r" }}
 </p>
 
 <h2>Tests Summary</h2>
