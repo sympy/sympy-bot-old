@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}
+SymPy Test Report
+{% endblock %}
+
+{% block content %}
+<h2>Test Report</h2>
+<p class="timestamp">Result:
+{% if task.result == "Passed" %}
+    <span class="result_ok">Passed</span>
+{% else %}
+    <span class="result_fail">{{ task.result }}</span>
+{% endif %}
+</p>
+<p>
+    Pull request: <a href="/pullrequest/{{ task.pullrequest.num }}">#{{ task.pullrequest.num }}</a><br/>
+    GitHub URL: <a href="{{ task.pullrequest.url }}">{{ task.pullrequest.url }}</a><br/>
+    Test command: <span class="code">{{ task.testcommand }}</span><br/>
+    Interpreter: <span class="code">{{ task.interpreter }}</span><br/>
+    Test report uploaded at: {{ task.uploaded_at }}
+</p>
+
+<h2>Test Log</h2>
+
+<p><pre>{{ task.log }}</pre></p>
+{% endblock %}

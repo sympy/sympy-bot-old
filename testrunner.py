@@ -52,7 +52,7 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
         interpreter, test_command))
     print "Return code:", r
     if r == 0:
-        result = "PASSED"
+        result = "Passed"
     else:
-        result = "FAILED"
+        result = "Failed"
     return {"result": result, "log": log, "return_code": r}
