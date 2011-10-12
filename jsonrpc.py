@@ -2,7 +2,10 @@
 
 from uuid import uuid4
 from urllib2 import urlopen, Request
-from simplejson import dumps, loads
+try:
+    from json import dumps, loads
+except ImportError:
+    from simplejson import dumps, loads
 
 class JSONRPCError(Exception):
 
