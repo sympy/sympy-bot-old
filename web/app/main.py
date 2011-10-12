@@ -81,7 +81,9 @@ class PullRequestPage(RequestHandler):
         p = PullRequest.all()
         p.filter("num =", int(num))
         p = p.get()
-        self.render("pullrequest.html", {'p': p, 'tasks': p.task_set})
+        t = p.task_set
+        t.order("uploaded_at")
+        self.render("pullrequest.html", {'p': p, 'tasks': t})
 
 class ReportPage(RequestHandler):
     def get(self, id):

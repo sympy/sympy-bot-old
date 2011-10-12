@@ -29,8 +29,8 @@ Click on the individual test to get the full report with logs.
 ({% if t.result == "Passed" %}<span class="result_ok">Passed</span>,
 {% else %}<span class="result_fail">{{ t.result }}</span>,
 {% endif %}
-    test command: <span class="code">{{ t.testcommand }}</span>,
-    interpreter: <span class="code">{{ t.interpreter }})</span></li>
+    command: <span class="code">{{ t.interpreter }} {{ t.testcommand }}</span>,
+    uploaded at: {{ t.uploaded_at }})</li>
 {% endfor %}
 </ul>
 
