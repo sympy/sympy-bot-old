@@ -18,6 +18,7 @@ from jsonrpc_client import JSONRPCService, JSONRPCError
 from jsonrpc_server import JSONRPCServer
 from models import PullRequest, Task
 from github import github_get_pull_request_all
+from utils import pretty_date
 
 dev_server = os.environ["SERVER_SOFTWARE"].startswith("Development")
 if dev_server:
@@ -67,10 +68,13 @@ class MainPage(RequestHandler):
         p = q.get()
         if p is None:
             last_update = None
+            last_update_pretty = "never"
         else:
             last_update = p.last_updated
+            last_update_pretty = pretty_date(last_update)
         self.render("index.html", {"pullrequests": PullRequest.all(),
-            "last_update": last_update})
+            "last_update": last_update,
+            "last_update_pretty": last_update_pretty})
 
 class PullRequestPage(RequestHandler):
     def get(self, num):
