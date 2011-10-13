@@ -47,22 +47,6 @@ class RequestHandler(webapp.RequestHandler):
 
 class MainPage(RequestHandler):
     def get(self):
-        if 0:
-            # Generate some data for development:
-            p = PullRequest(num=int(random()*1000), url="http://dev-server/")
-            p.put()
-            t = Task(pullrequest=p)
-            t.result = "Passed"
-            t.interpreter = "python"
-            t.testcommand = "./setup.py test"
-            t.log = """Some log\n====\n XXX\n OK\n"""
-            t.put()
-            t = Task(pullrequest=p)
-            t.result = "Failed"
-            t.interpreter = "python3"
-            t.testcommand = "./setup.py test"
-            t.log = """Some log\n====\n XXX\n Tests failed\n"""
-            t.put()
         q = PullRequest.all()
         q.order("-last_updated")
         p = q.get()
