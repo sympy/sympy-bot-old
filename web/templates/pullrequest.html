@@ -9,7 +9,8 @@ SymPy Pull Request
 <p>
     Pull request: #{{ p.num }}<br/>
     GitHub URL: <a href="{{ p.url }}">{{ p.url }}</a><br/>
-    Repository and branch: {{ p.repo }}
+    Repository and branch:
+        <a href="{{ p.repo }}">{{ p.repo }}</a>
         <a href="{{ p.repo }}/commits/{{ p.branch }}">{{ p.branch }}</a><br/>
     {% if p.author_name %}
     Author: {{ p.author_name }}
