@@ -100,6 +100,10 @@ class AsyncHandler(webapp.RequestHandler):
             p = PullRequest.all()
             p.filter("num =", int(num))
             p = p.get()
+            if p is None:
+                # Create the pull request:
+                p = PullRequest(num=num)
+                p.put()
             t = Task(pullrequest=p)
             t.result = result
             t.interpreter = interpreter
