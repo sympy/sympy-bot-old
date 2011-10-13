@@ -79,6 +79,4 @@ t = time()
 pulls = get_all_pages(url)
 print "    Done in:", time()-t
 for pull in pulls:
-    print "#", pull["number"], ":", pull["title"]
-    #print pull.keys()
-    #stop
+    print "#%d (%s): %s" %(pull["number"], pull["user"]["login"], pull["title"])
