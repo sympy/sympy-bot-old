@@ -16,7 +16,8 @@ update it manually by clicking on 'Update' above.
 <p>
 <ul>
 {% for p in pullrequests_mergeable %}
-    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></li>
+    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
+    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }})</li>
 {% endfor %}
 </ul>
 </p>
@@ -25,7 +26,8 @@ update it manually by clicking on 'Update' above.
 These pull requests have to be rebased first.
 <ul>
 {% for p in pullrequests_nonmergeable %}
-    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></li>
+    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
+    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }})</li>
 {% endfor %}
 </ul>
 </p>
