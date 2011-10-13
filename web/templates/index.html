@@ -12,15 +12,21 @@ Pull Requests
 This is a list of pull requests at GitHub. Currently you have to
 update it manually by clicking on 'Update' above.
 </p>
+<h3>Mergeable Pullrequests</h3>
 <p>
 <ul>
-{% for p in pullrequests %}
+{% for p in pullrequests_mergeable %}
     <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></li>
 {% endfor %}
 </ul>
-{% if dev_server %}
-    Running in app engine SDK. Refresh this page to generate random pull
-    requests.
-{% endif %}
+</p>
+<h3>Non-Mergeable Pullrequests</h3>
+<p>
+These pull requests have to be rebased first.
+<ul>
+{% for p in pullrequests_nonmergeable %}
+    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></li>
+{% endfor %}
+</ul>
 </p>
 {% endblock %}

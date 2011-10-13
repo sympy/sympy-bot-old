@@ -10,6 +10,12 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
+- kind: PullRequest
+  properties:
+  - name: mergeable
+  - name: created_at
+    direction: desc
+
 - kind: Task
   properties:
   - name: pullrequest

@@ -56,7 +56,15 @@ class MainPage(RequestHandler):
         else:
             last_update = p.last_updated
             last_update_pretty = pretty_date(last_update)
-        self.render("index.html", {"pullrequests": PullRequest.all(),
+        p_mergeable = PullRequest.all()
+        p_mergeable.filter("mergeable =", True)
+        p_mergeable.order("-created_at")
+        p_nonmergeable = PullRequest.all()
+        p_nonmergeable.filter("mergeable =", False)
+        p_nonmergeable.order("-created_at")
+        self.render("index.html", {
+            "pullrequests_mergeable": p_mergeable,
+            "pullrequests_nonmergeable": p_nonmergeable,
             "last_update": last_update,
             "last_update_pretty": last_update_pretty})
 
