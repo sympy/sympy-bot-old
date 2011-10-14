@@ -3,6 +3,9 @@ from google.appengine.ext import db
 class PullRequest(db.Model):
     num = db.IntegerProperty(required=True)
     url = db.StringProperty()
+    state = db.StringProperty()
+    title = db.StringProperty()
+    body = db.TextProperty()
     last_updated = db.DateTimeProperty(auto_now=True)
     repo = db.StringProperty()
     branch = db.StringProperty()

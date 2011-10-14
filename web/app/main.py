@@ -129,6 +129,9 @@ class UpdatePage(RequestHandler):
                 p = PullRequest(num=num)
             # Update all data that we can from GitHub:
             p.url = pull['html_url']
+            p.state = pull["state"]
+            p.title = pull["title"]
+            p.body = pull["body"]
             p.author_name = pull["user"].get("name", "")
             p.author_email = pull["user"].get("email", "")
             created_at = pull["created_at"]
@@ -154,11 +157,14 @@ class Worker(webapp.RequestHandler):
             if p is None:
                 p = PullRequest(num=_num)
             p.url = pull['html_url']
+            p.state = pull["state"]
+            p.title = pull["title"]
+            p.body = pull["body"]
+            p.mergeable = pull["mergeable"]
             p.repo = pull['head']['repo']['url']
             p.branch = pull['head']['ref']
             p.author_name = pull["user"].get("name", "")
             p.author_email = pull["user"].get("email", "")
-            p.mergeable = pull["mergeable"]
             created_at = pull["created_at"]
             created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
             p.created_at = created_at
