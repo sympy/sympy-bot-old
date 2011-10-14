@@ -72,11 +72,14 @@ def get_all_pages(url):
 
 # v3:
 base_url = "https://api.github.com"
-url = base_url + "/repos/sympy/sympy/pulls?state=closed"
-#url = base_url + "/repos/sympy/sympy/pulls?state=open"
+#url = base_url + "/repos/sympy/sympy/pulls?state=closed"
+url = base_url + "/repos/sympy/sympy/pulls?state=open"
 print "Getting all pull requests..."
 t = time()
 pulls = get_all_pages(url)
 print "    Done in:", time()-t
 for pull in pulls:
     print "#%d (%s): %s" %(pull["number"], pull["user"]["login"], pull["title"])
+    url = base_url + "/repos/sympy/sympy/pulls/%d" % pull["number"]
+    data = json.load(urlopen(url))
+    print "mergeable:", data["mergeable"]
