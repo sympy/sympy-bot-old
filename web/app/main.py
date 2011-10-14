@@ -10,14 +10,16 @@ use_library("django", "1.2")
 
 from django.utils import simplejson as json
 
-from google.appengine.ext import webapp
+from google.appengine.ext import webapp, db
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext.webapp import template
+from google.appengine.api import taskqueue
 
 from jsonrpc_client import JSONRPCService, JSONRPCError
 from jsonrpc_server import JSONRPCServer
 from models import PullRequest, Task
-from github import github_get_pull_request_all
+from github import (github_get_pull_request_all_v2,
+        github_get_pull_request_all_v3, github_get_pull_request)
 from utils import pretty_date
 
 dev_server = os.environ["SERVER_SOFTWARE"].startswith("Development")
@@ -116,34 +118,55 @@ class AsyncHandler(webapp.RequestHandler):
 
 class UpdatePage(RequestHandler):
     def get(self):
-        data = github_get_pull_request_all("sympy/sympy")
-        for pull in data['pulls']:
-            num = pull['number']
-            url = pull['html_url']
-            repo = pull['head']['repository']['url']
-            branch = pull['head']['ref']
-            author_name = pull["user"].get("name", "")
-            author_email = pull["user"].get("email", "")
-            mergeable = pull["mergeable"]
-            created_at = pull["created_at"]
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+        data = github_get_pull_request_all_v3("sympy/sympy")
+        for pull in data:
+            num = pull["number"]
             # Get the old entity or create a new one:
             p = PullRequest.all()
             p.filter("num =", int(num))
             p = p.get()
             if p is None:
                 p = PullRequest(num=num)
-            # Update all data from GitHub:
-            p.num = num
-            p.url = url
-            p.repo = repo
-            p.branch = branch
-            p.author_name = author_name
-            p.author_email = author_email
-            p.mergeable = mergeable
+            # Update all data that we can from GitHub:
+            p.url = pull['html_url']
+            p.author_name = pull["user"].get("name", "")
+            p.author_email = pull["user"].get("email", "")
+            created_at = pull["created_at"]
+            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
             p.created_at = created_at
             p.put()
+            # Update the rest with a specific query to the pull request:
+            taskqueue.add(url="/worker", params={"type": "pullrequest",
+                "num": num})
         self.redirect("/")
+
+class Worker(webapp.RequestHandler):
+
+    def post(self):
+        _type = self.request.get("type")
+        _num = int(self.request.get("num"))
+        def txn():
+            assert _type == "pullrequest"
+            pull = github_get_pull_request("sympy/sympy", _num)
+            p = PullRequest.all()
+            p.filter("num =", int(_num))
+            p = p.get()
+            if p is None:
+                p = PullRequest(num=_num)
+            p.url = pull['html_url']
+            p.repo = pull['head']['repo']['url']
+            p.branch = pull['head']['ref']
+            p.author_name = pull["user"].get("name", "")
+            p.author_email = pull["user"].get("email", "")
+            p.mergeable = pull["mergeable"]
+            created_at = pull["created_at"]
+            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+            p.created_at = created_at
+            p.put()
+        # This raises:
+        #BadRequestError: Only ancestor queries are allowed inside transactions.
+        #db.run_in_transaction(txn)
+        txn()
 
 def main():
     urls =  [
@@ -152,6 +175,7 @@ def main():
         ('/pullrequest/(\d+)/?', PullRequestPage),
         ('/report/(.*)/?', ReportPage),
         ('/update/?', UpdatePage),
+        ('/worker/?', Worker),
     ]
     application = webapp.WSGIApplication(urls, debug=True)
     run_wsgi_app(application)
