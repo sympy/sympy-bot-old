@@ -22,13 +22,27 @@ update it manually by clicking on 'Update' above.
 {% endfor %}
 </ul>
 </p>
+
 <h3>Non-Mergeable Pullrequests</h3>
 <p>
 These pull requests have to be rebased first.
 <ul>
 {% for p in pullrequests_nonmergeable %}
     <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }})</li>
+    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }},
+    title: {{ p.title }})</li>
+{% endfor %}
+</ul>
+</p>
+
+<h3>Closed Pullrequests</h3>
+<p>
+These pull requests are closed.
+<ul>
+{% for p in pullrequests_closed %}
+    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
+    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }},
+    title: {{ p.title }})</li>
 {% endfor %}
 </ul>
 </p>
