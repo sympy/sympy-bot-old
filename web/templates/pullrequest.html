@@ -8,6 +8,7 @@ SymPy Pull Request
 <h2>Pull Request Information</h2>
 <p>
     Pull request: #{{ p.num }}<br/>
+    Title: {{ p.title }}<br/>
     GitHub URL: <a href="{{ p.url }}">{{ p.url }}</a><br/>
     Repository and branch:
         <a href="{{ p.repo }}">{{ p.repo }}</a>
@@ -19,10 +20,12 @@ SymPy Pull Request
         {% endif %}<br/>
     {% endif %}
     Mergeable: {{ p.mergeable }}<br/>
-    Created at: {{ p.created_at|date:"r" }}
+    State: {{ p.state }}<br/>
+    Created at: {{ p.created_at|date:"r" }}<br/>
 </p>
 
 <h2>Tests Summary</h2>
+<p>
 Click on the individual test to get the full report with logs.
 <ul>
 {% for t in tasks %}
@@ -34,6 +37,10 @@ Click on the individual test to get the full report with logs.
     uploaded at: {{ t.uploaded_at }})</li>
 {% endfor %}
 </ul>
+</p>
 
-<p><pre>{{ log }}</pre></p>
+
+<h2>Body</h2>
+<p>{{ p.body }}</p>
+
 {% endblock %}

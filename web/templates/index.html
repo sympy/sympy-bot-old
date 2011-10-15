@@ -17,7 +17,8 @@ update it manually by clicking on 'Update' above.
 <ul>
 {% for p in pullrequests_mergeable %}
     <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }})</li>
+    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }},
+    title: {{ p.title }})</li>
 {% endfor %}
 </ul>
 </p>
