@@ -17,7 +17,7 @@ update it manually by clicking on 'Update' above.
 <ul>
 {% for p in pullrequests_mergeable %}
     <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }},
+    (author: {{ p.author.name }}, created: {{ p.created_at|date:"r" }},
     title: {{ p.title }})</li>
 {% endfor %}
 </ul>
@@ -29,7 +29,7 @@ These pull requests have to be rebased first.
 <ul>
 {% for p in pullrequests_nonmergeable %}
     <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }},
+    (author: {{ p.author.name }}, created: {{ p.created_at|date:"r" }},
     title: {{ p.title }})</li>
 {% endfor %}
 </ul>
@@ -41,7 +41,7 @@ These pull requests are closed.
 <ul>
 {% for p in pullrequests_closed %}
     <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author_name }}, created: {{ p.created_at|date:"r" }},
+    (author: {{ p.author.name }}, created: {{ p.created_at|date:"r" }},
     title: {{ p.title }})</li>
 {% endfor %}
 </ul>

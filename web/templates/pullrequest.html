@@ -13,10 +13,10 @@ SymPy Pull Request
     Repository and branch:
         <a href="{{ p.repo }}">{{ p.repo }}</a>
         <a href="{{ p.repo }}/commits/{{ p.branch }}">{{ p.branch }}</a><br/>
-    {% if p.author_name %}
-    Author: {{ p.author_name }}
-        {% if p.author_email %}
-        &lt;{{ p.author_email }}&gt;
+    {% if p.author.name %}
+    Author: {{ p.author.name }}
+        {% if p.author.email %}
+        &lt;{{ p.author.email }}&gt;
         {% endif %}<br/>
     {% endif %}
     Mergeable: {{ p.mergeable }}<br/>

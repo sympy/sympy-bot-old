@@ -1,5 +1,13 @@
 from google.appengine.ext import db
 
+class User(db.Model):
+    login = db.StringProperty(required=True)
+    id = db.IntegerProperty()
+    url = db.StringProperty()
+    gravatar_url = db.StringProperty()
+    name = db.StringProperty()
+    email = db.StringProperty()
+
 class PullRequest(db.Model):
     num = db.IntegerProperty(required=True)
     url = db.StringProperty()
@@ -9,8 +17,7 @@ class PullRequest(db.Model):
     last_updated = db.DateTimeProperty(auto_now=True)
     repo = db.StringProperty()
     branch = db.StringProperty()
-    author_name = db.StringProperty()
-    author_email = db.StringProperty()
+    author = db.ReferenceProperty(User)
     mergeable = db.BooleanProperty()
     created_at = db.DateTimeProperty()
 

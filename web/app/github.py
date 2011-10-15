@@ -28,6 +28,11 @@ def github_get_pull_request(repo, n):
     url = base_url + "/repos/%s/pulls/%d" % (repo, n)
     return load(urlopen(url))
 
+def github_get_user(user):
+    base_url = "https://api.github.com"
+    url = base_url + "/users/%s" % (user)
+    return load(urlopen(url))
+
 def link2dict(l):
     """
     Converts the GitHub Link header to a dict:
