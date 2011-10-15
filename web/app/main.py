@@ -125,6 +125,7 @@ class AsyncHandler(webapp.RequestHandler):
 class UpdatePage(RequestHandler):
     def get(self):
         data = github_get_pull_request_all_v3("sympy/sympy")
+        data += github_get_pull_request_all_v3("sympy/sympy", "closed")
         for pull in data:
             num = pull["number"]
             # Get the old entity or create a new one:
