@@ -16,6 +16,19 @@ indexes:
   - name: created_at
     direction: desc
 
+- kind: PullRequest
+  properties:
+  - name: mergeable
+  - name: state
+  - name: created_at
+    direction: desc
+
+- kind: PullRequest
+  properties:
+  - name: state
+  - name: created_at
+    direction: desc
+
 - kind: Task
   properties:
   - name: pullrequest
