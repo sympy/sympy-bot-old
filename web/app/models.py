@@ -4,7 +4,7 @@ class User(db.Model):
     login = db.StringProperty(required=True)
     id = db.IntegerProperty()
     url = db.StringProperty()
-    gravatar_url = db.StringProperty()
+    avatar_url = db.StringProperty()
     name = db.StringProperty()
     email = db.StringProperty()
 
