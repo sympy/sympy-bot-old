@@ -168,7 +168,8 @@ class Worker(webapp.RequestHandler):
             p.title = pull["title"]
             p.body = pull["body"]
             p.mergeable = pull["mergeable"]
-            p.repo = pull['head']['repo']['url']
+            if pull['head']['repo']:
+                p.repo = pull['head']['repo']['url']
             p.branch = pull['head']['ref']
             p.author_name = pull["user"].get("name", "")
             p.author_email = pull["user"].get("email", "")
