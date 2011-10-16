@@ -123,10 +123,11 @@ class AsyncHandler(webapp.RequestHandler):
         output = s.handle_request_from_client(self.request.body)
         self.response.out.write(output)
 
-class UpdatePage(RequestHandler):
-    def get(self):
+class UpdateBase(RequestHandler):
+    def update(self, full=False):
         data = github_get_pull_request_all_v3("sympy/sympy")
-        data += github_get_pull_request_all_v3("sympy/sympy", "closed")
+        if full:
+            data += github_get_pull_request_all_v3("sympy/sympy", "closed")
         for pull in data:
             num = pull["number"]
             # Get the old entity or create a new one:
@@ -156,9 +157,19 @@ class UpdatePage(RequestHandler):
             # Update the rest with a specific query to the pull request:
             taskqueue.add(url="/worker", params={"type": "pullrequest",
                 "num": num})
-        for u in User.all():
-            taskqueue.add(url="/worker", params={"type": "user",
-                "login": u.login})
+        if full:
+            for u in User.all():
+                taskqueue.add(url="/worker", params={"type": "user",
+                    "login": u.login})
+
+class UpdatePage(UpdateBase):
+    def get(self):
+        self.update(full=True)
+        self.redirect("/")
+
+class QuickUpdatePage(UpdateBase):
+    def get(self):
+        self.update(full=False)
         self.redirect("/")
 
 class Worker(webapp.RequestHandler):
@@ -224,6 +235,7 @@ def main():
         ('/pullrequest/(\d+)/?', PullRequestPage),
         ('/report/(.*)/?', ReportPage),
         ('/update/?', UpdatePage),
+        ('/quickupdate/?', QuickUpdatePage),
         ('/worker/?', Worker),
     ]
     application = webapp.WSGIApplication(urls, debug=True)
