@@ -6,10 +6,12 @@ Pull Requests
 
 {% block content %}
 <h2>List of Pull Requests</h2>
-<p class="timestamp">Last full update {{ last_update_pretty }}</p>
+<p class="timestamp">Last full update {{ last_update_pretty }} |
+Last quick update {{ last_quick_update_pretty }}</p>
 <p>
-This is a list of all pull requests at GitHub. They update automatically: full
-update is run every 2 hours, open pull requests are updated every 10 minutes.
+This is a list of all pull requests at GitHub. They update automatically: all
+pull requests are updated every 2 hours (full update), open pull requests are
+updated every 10 minutes (quick update).
 </p>
 <h3>Mergeable Pullrequests</h3>
 <p>

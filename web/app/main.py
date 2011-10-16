@@ -60,6 +60,17 @@ class MainPage(RequestHandler):
         else:
             last_update = p.last_updated
             last_update_pretty = pretty_date(last_update)
+        q = PullRequest.all()
+        q.filter("state =", "open")
+        q.order("last_updated")
+        # This is the open request that wasn't updated for the longest time:
+        p = q.get()
+        if p is None:
+            last_quick_update = None
+            last_quick_update_pretty = "never"
+        else:
+            last_quick_update = p.last_updated
+            last_quick_update_pretty = pretty_date(last_quick_update)
         p_mergeable = PullRequest.all()
         p_mergeable.filter("mergeable =", True)
         p_mergeable.filter("state =", "open")
@@ -76,7 +87,10 @@ class MainPage(RequestHandler):
             "pullrequests_nonmergeable": p_nonmergeable,
             "pullrequests_closed": p_closed,
             "last_update": last_update,
-            "last_update_pretty": last_update_pretty})
+            "last_update_pretty": last_update_pretty,
+            "last_quick_update": last_quick_update,
+            "last_quick_update_pretty": last_quick_update_pretty,
+            })
 
 class PullRequestPage(RequestHandler):
     def get(self, num):

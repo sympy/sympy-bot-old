@@ -29,6 +29,11 @@ indexes:
   - name: created_at
     direction: desc
 
+- kind: PullRequest
+  properties:
+  - name: state
+  - name: last_updated
+
 - kind: Task
   properties:
   - name: pullrequest
