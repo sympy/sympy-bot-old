@@ -51,7 +51,8 @@ class RequestHandler(webapp.RequestHandler):
 class MainPage(RequestHandler):
     def get(self):
         q = PullRequest.all()
-        q.order("-last_updated")
+        q.order("last_updated")
+        # This is the request that wasn't updated for the longest time:
         p = q.get()
         if p is None:
             last_update = None
