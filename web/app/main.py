@@ -174,12 +174,12 @@ class UpdateBase(RequestHandler):
 class UpdatePage(UpdateBase):
     def get(self):
         self.update(full=True)
-        self.redirect("/")
+        self.response.out.write("OK")
 
 class QuickUpdatePage(UpdateBase):
     def get(self):
         self.update(full=False)
-        self.redirect("/")
+        self.response.out.write("OK")
 
 class Worker(webapp.RequestHandler):
 
