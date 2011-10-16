@@ -129,6 +129,9 @@ class UpdateBase(RequestHandler):
         data = github_get_pull_request_all_v3("sympy/sympy")
         if full:
             data += github_get_pull_request_all_v3("sympy/sympy", "closed")
+        p = PullRequest.all()
+        p.filter("state =", "open")
+        open_list = [x.num for x in p]
         for pull in data:
             num = pull["number"]
             # Get the old entity or create a new one:
@@ -156,6 +159,11 @@ class UpdateBase(RequestHandler):
 
             p.put()
             # Update the rest with a specific query to the pull request:
+            if num not in open_list:
+                # open_list pull requests will be updated below
+                taskqueue.add(url="/worker", queue_name="github",
+                        params={"type": "pullrequest", "num": num})
+        for num in open_list:
             taskqueue.add(url="/worker", queue_name="github",
                     params={"type": "pullrequest", "num": num})
         if full:
