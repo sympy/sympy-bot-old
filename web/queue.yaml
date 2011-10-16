@@ -1,0 +1,5 @@
+queue:
+- name: github
+  rate: 4000/h
+  retry_parameters:
+    task_retry_limit: 0

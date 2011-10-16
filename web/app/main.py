@@ -155,12 +155,12 @@ class UpdateBase(RequestHandler):
 
             p.put()
             # Update the rest with a specific query to the pull request:
-            taskqueue.add(url="/worker", params={"type": "pullrequest",
-                "num": num})
+            taskqueue.add(url="/worker", queue_name="github",
+                    params={"type": "pullrequest", "num": num})
         if full:
             for u in User.all():
-                taskqueue.add(url="/worker", params={"type": "user",
-                    "login": u.login})
+                taskqueue.add(url="/worker", queue_name="github",
+                        params={"type": "user", "login": u.login})
 
 class UpdatePage(UpdateBase):
     def get(self):
