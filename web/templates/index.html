@@ -8,11 +8,13 @@ Pull Requests
 $(document).ready(function() {
     $('#table_mergeable').dataTable({
         "sScrollY": "400px",
-        "bPaginate": false
+        "bPaginate": false,
+        "aaSorting": [[ 0, "desc" ]]
     });
     $('#table_nonmergeable').dataTable({
         "sScrollY": "400px",
-        "bPaginate": false
+        "bPaginate": false,
+        "aaSorting": [[ 0, "desc" ]]
     });
 });
 {% endblock %}
