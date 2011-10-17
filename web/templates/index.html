@@ -10,6 +10,10 @@ $(document).ready(function() {
         "sScrollY": "400px",
         "bPaginate": false
     });
+    $('#table_nonmergeable').dataTable({
+        "sScrollY": "400px",
+        "bPaginate": false
+    });
 });
 {% endblock %}
 
@@ -22,7 +26,10 @@ This is a list of all pull requests at GitHub. They update automatically: all
 pull requests are updated every 2 hours (full update), open pull requests are
 updated every 10 minutes (quick update).
 </p>
-<h3>Mergeable Pullrequests</h3>
+
+<h2>Mergeable Pullrequests</h2>
+<p>
+These pull requests apply cleanly over master.
 <table id="table_mergeable" class="display">
     <thead>
         <tr>
@@ -43,20 +50,35 @@ updated every 10 minutes (quick update).
     {% endfor %}
     </tbody>
 </table>
+.</p>
 
-<h3>Non-Mergeable Pullrequests</h3>
+<h2>Non-Mergeable Pullrequests</h2>
 <p>
 These pull requests have to be rebased first.
-<ul>
-{% for p in pullrequests_nonmergeable %}
-    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author.name }}, created: {{ p.created_at|date:"r" }},
-    title: {{ p.title }})</li>
-{% endfor %}
-</ul>
+<table id="table_nonmergeable" class="display">
+    <thead>
+        <tr>
+            <th>Num</th>
+            <th>Author Name</th>
+            <th>Created at</th>
+            <th>Title</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for p in pullrequests_nonmergeable %}
+        <tr>
+            <td><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></td>
+            <td>{{ p.author.name }}</td>
+            <td>{{ p.created_at|date:"r" }}</td>
+            <td>{{ p.title }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+.
 </p>
 
-<h3>Closed Pullrequests</h3>
+<h2>Closed Pullrequests</h2>
 <p>
 Show <a href="/closed_pullrequests/">closed pull requests</a>.
 </p>
