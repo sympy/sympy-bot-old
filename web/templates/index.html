@@ -8,7 +8,7 @@ Pull Requests
 $(document).ready(function() {
     $('#table_mergeable').dataTable({
         "sScrollY": "400px",
-        "bPaginate": true
+        "bPaginate": false
     });
 });
 {% endblock %}
@@ -26,7 +26,7 @@ updated every 10 minutes (quick update).
 <table id="table_mergeable" class="display">
     <thead>
         <tr>
-            <th>#</th>
+            <th>Num</th>
             <th>Author Name</th>
             <th>Created at</th>
             <th>Title</th>
