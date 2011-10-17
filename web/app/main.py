@@ -79,13 +79,9 @@ class MainPage(RequestHandler):
         p_nonmergeable.filter("mergeable =", False)
         p_nonmergeable.filter("state =", "open")
         p_nonmergeable.order("-created_at")
-        p_closed = PullRequest.all()
-        p_closed.filter("state =", "closed")
-        p_closed.order("-created_at")
         self.render("index.html", {
             "pullrequests_mergeable": p_mergeable,
             "pullrequests_nonmergeable": p_nonmergeable,
-            "pullrequests_closed": p_closed,
             "last_update": last_update,
             "last_update_pretty": last_update_pretty,
             "last_quick_update": last_quick_update,
