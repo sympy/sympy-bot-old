@@ -4,6 +4,12 @@
 Pull Requests
 {% endblock %}
 
+{% block runtime %}
+$(document).ready(function() {
+    $('#table_mergeable').dataTable();
+});
+{% endblock %}
+
 {% block content %}
 <h2>List of Pull Requests</h2>
 <p class="timestamp">Last full update {{ last_update_pretty }} |
