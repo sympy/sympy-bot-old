@@ -92,6 +92,15 @@ class MainPage(RequestHandler):
             "last_quick_update_pretty": last_quick_update_pretty,
             })
 
+class ClosedPullRequestsPage(RequestHandler):
+    def get(self):
+        p_closed = PullRequest.all()
+        p_closed.filter("state =", "closed")
+        p_closed.order("-created_at")
+        self.render("closed_pullrequests.html", {
+            "pullrequests_closed": p_closed,
+            })
+
 class PullRequestPage(RequestHandler):
     def get(self, num):
         p = PullRequest.all()
@@ -254,6 +263,7 @@ class Worker(webapp.RequestHandler):
 def main():
     urls =  [
         ('/', MainPage),
+        ('/closed_pullrequests/?', ClosedPullRequestsPage),
         ('/async/?', AsyncHandler),
         ('/pullrequest/(\d+)/?', PullRequestPage),
         ('/report/(.*)/?', ReportPage),
