@@ -15,13 +15,26 @@ updated every 10 minutes (quick update).
 </p>
 <h3>Mergeable Pullrequests</h3>
 <p>
-<ul>
-{% for p in pullrequests_mergeable %}
-    <li><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a>
-    (author: {{ p.author.name }}, created: {{ p.created_at|date:"r" }},
-    title: {{ p.title }})</li>
-{% endfor %}
-</ul>
+<table id="table_mergeable">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Author Name</th>
+            <th>Created at</th>
+            <th>Title</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for p in pullrequests_mergeable %}
+        <tr>
+            <td><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></td>
+            <td>{{ p.author.name }}</td>
+            <td>{{ p.created_at|date:"r" }}</td>
+            <td>{{ p.title }})</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
 </p>
 
 <h3>Non-Mergeable Pullrequests</h3>
