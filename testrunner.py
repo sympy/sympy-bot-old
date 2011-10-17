@@ -2,7 +2,7 @@ import sys
 import re
 import subprocess
 
-from utils import cmd, cmd2
+from utils import cmd, cmd2, CmdException
 
 def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
         master_repo_path, test_command, interpreter, python3):
