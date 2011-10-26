@@ -94,7 +94,7 @@ def run_tests():
 
     return report
 
-py3k = "sympy-py3k"
+py3k = "py3k-sympy"
 
 def pre_python3():
     if translate:
