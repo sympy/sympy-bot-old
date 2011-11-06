@@ -4,4 +4,4 @@ cron:
   schedule: every 10 minutes
 - description: update from GitHub (full)
   url: /update
-  schedule: every 2 hours
+  schedule: every 6 hours
