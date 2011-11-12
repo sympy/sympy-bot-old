@@ -109,6 +109,7 @@ Commands:
 
 def formulate_review(report_url, report_status, user, config):
     user = user.get("login", None)
+    platform_version = get_platform_version()
     if user:
         atuser = "@"+user+": "
     else:
@@ -123,9 +124,12 @@ See the report for a list of the merge conflicts.""" % atuser
     elif report_status == "Failed":
         summary = """There were test failures.
 
-%sPlease fix the test failures.""" % atuser
+%s
+%sPlease fix the test failures.""" % (platform_version, atuser)
     elif report_status == "Passed":
-        summary = """All tests have passed."""
+        summary = """All tests have passed.
+
+%s""" % platform_version
     else:
         raise ValueError("Unknown report_status")
 
@@ -169,6 +173,29 @@ def load_config_file():
                 return namespace
 
     return {}
+
+def get_platform_version():
+    import sys
+    from os import getenv
+    import platform
+    size = getattr(sys, "maxint", None)
+    if size is None: #Python 3 doesn't have maxint
+        size = sys.maxsize
+    if size > 2**32:
+        architecture = "64-bit"
+    else:
+        architecture = "32-bit"
+    platfotm_system = platform.system()
+    use_cache = getenv('SYMPY_USE_CACHE', 'yes').lower()
+    executable = sys.executable
+    v = tuple(sys.version_info)
+    python_version = "%s.%s.%s-%s-%s" % v
+
+    r  = "python:       %s\n" % python_version
+    r += "architecture: %s (%s)\n" % (platfotm_system, architecture)
+    r += "cache:        %s\n" % use_cache
+    return r
+
 
 def review(n, config):
     if config.upload:
