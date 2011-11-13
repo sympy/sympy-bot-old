@@ -71,6 +71,17 @@ def cmd2(cmd):
 
     return log, r
 
+def get_interpreter_version_info(interpreter):
+    """
+    Get python version of `interpreter`
+    """
+
+    cmd = "%s -c 'import sys; print(sys.version_info[:])'" % interpreter
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    ouput = p.stdout.read()
+
+    return eval(ouput)
 
 def github_get_pull_request_all(repo):
     """
