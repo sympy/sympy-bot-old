@@ -76,12 +76,13 @@ def get_interpreter_version_info(interpreter):
     Get python version of `interpreter`
     """
 
-    cmd = "%s -c 'import sys; print(sys.version_info[:])'" % interpreter
+    code = 'import sys; print("%s.%s.%s-%s-%s" % sys.version_info[:])'
+    cmd = "%s -c '%s'" % (interpreter, code)
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
     ouput = p.stdout.read()
 
-    return eval(ouput)
+    return ouput
 
 def github_get_pull_request_all(repo):
     """

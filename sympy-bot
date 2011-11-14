@@ -189,10 +189,9 @@ def get_platform_version(interpreter):
     platfotm_system = platform.system()
     use_cache = getenv('SYMPY_USE_CACHE', 'yes').lower()
     executable = sys.executable
-    v = get_interpreter_version_info(interpreter)
-    python_version = "%s.%s.%s-%s-%s" % v
+    python_version = get_interpreter_version_info(interpreter)
 
-    r  = "python:       %s\n" % python_version
+    r  = "python:       %s" % python_version
     r += "architecture: %s (%s)\n" % (platfotm_system, architecture)
     r += "cache:        %s\n" % use_cache
     return r
