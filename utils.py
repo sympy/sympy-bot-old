@@ -82,7 +82,7 @@ def get_interpreter_version_info(interpreter):
             stderr=subprocess.STDOUT)
     ouput = p.stdout.read()
 
-    return ouput
+    return ouput.strip()
 
 def github_get_pull_request_all(repo):
     """

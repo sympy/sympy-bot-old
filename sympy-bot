@@ -110,7 +110,7 @@ Commands:
 
 def formulate_review(report_url, report_status, user, config):
     user = user.get("login", None)
-    platform_version = get_platform_version(config.interpreter)
+
     if user:
         atuser = "@"+user+": "
     else:
@@ -121,37 +121,32 @@ def formulate_review(report_url, report_status, user, config):
 %sPlease rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts.""" % atuser
     elif report_status == "fetch":
-        summary = """Could not fetch the branch.  %sPlease run the sympy-bot tests again.""" % atuser
+        summary = """Could not fetch the branch.
+
+%sPlease run the sympy-bot tests again.""" % atuser
     elif report_status == "Failed":
         summary = """There were test failures.
 
-%s
-%sPlease fix the test failures.""" % (platform_version, atuser)
+%sPlease fix the test failures.""" % atuser
     elif report_status == "Passed":
-        summary = """All tests have passed.
-
-%s""" % platform_version
+        summary = """All tests have passed."""
     else:
         raise ValueError("Unknown report_status")
+
+    details  = get_platform_version(config.interpreter)
+    bold = ("", "**")[config.testcommand != default_testcommand]
+    details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
 
     report = """\
 Test results html report: %s
 """ % report_url
 
-    if config.interpreter != default_interpreter:
-        report += """
-**Note** A custom interpreter was used: `%s`
-""" % config.interpreter
-
-    if config.testcommand != default_testcommand:
-        report += """
-**Note** A custom test command was used: `%s`
-""" % config.testcommand
-
     report += """
-Summary: %s
+%s
+**Summary:** %s
 
-Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % summary
+Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
+    (details, summary)
 
     return report
 
@@ -190,10 +185,9 @@ def get_platform_version(interpreter):
     use_cache = getenv('SYMPY_USE_CACHE', 'yes').lower()
     executable = sys.executable
     python_version = get_interpreter_version_info(interpreter)
-
-    r  = "python:       %s" % python_version
-    r += "architecture: %s (%s)\n" % (platfotm_system, architecture)
-    r += "cache:        %s\n" % use_cache
+    r  = "*Interpreter:*   %s  (%s)\n" % (executable, python_version)
+    r += "*Architecture:* %s (%s)\n" % (platfotm_system, architecture)
+    r += "*Cache:*        %s\n" % use_cache
     return r
 
 
