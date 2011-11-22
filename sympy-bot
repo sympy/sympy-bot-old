@@ -119,7 +119,7 @@ def formulate_review(report_url, report_status, user, config):
 %sPlease rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts.""" % atuser
     elif report_status == "fetch":
-        summary = """Could not fetch the branch.  Please run the sympy-bot tests again.""" % atuser
+        summary = """Could not fetch the branch.  %sPlease run the sympy-bot tests again.""" % atuser
     elif report_status == "Failed":
         summary = """There were test failures.
 
