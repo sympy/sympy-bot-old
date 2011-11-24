@@ -8,6 +8,7 @@ import base64
 from urllib import urlencode
 import time
 import sys
+import re
 from getpass import getpass
 
 from jsonrpc import JSONRPCService
@@ -83,6 +84,14 @@ def get_interpreter_version_info(interpreter):
     ouput = p.stdout.read()
 
     return ouput.strip()
+
+def get_xpassed_info_from_log(log):
+    re_xpassed = re.compile("\s+_+\s+xpassed tests\s+_+\s+(?P<xpassed>([^\n]+\n)+)\n", re.M)
+    m = re_xpassed.search(log)
+    if m:
+        lines = m.group('xpassed')
+        return lines.splitlines()
+    return []
 
 def github_get_pull_request_all(repo):
     """

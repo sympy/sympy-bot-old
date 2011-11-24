@@ -108,7 +108,7 @@ Commands:
         sys.exit(1)
     parser.print_help()
 
-def formulate_review(report_url, report_status, user, config):
+def formulate_review(report_url, report_status, xpassed, user, config):
     user = user.get("login", None)
 
     if user:
@@ -139,6 +139,8 @@ See the report for a list of the merge conflicts.""" % atuser
     else:
         bold = ""
     details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
+    if (report_status == "Passed") and xpassed:
+        details += """*XPassed tests:* %s\n""" % len(xpassed)
 
     report = """\
 Test results html report: %s
@@ -232,6 +234,7 @@ def review(n, config):
     print "View log at: %s" % log_file
     log = result["log"]
     report_status = result["result"]
+    xpassed = result["xpassed"]
     bot_file = os.path.realpath(os.path.abspath(__file__))
     bot_dir = os.path.dirname(bot_file)
 
@@ -250,10 +253,10 @@ def review(n, config):
         report_url = reviews_sympy_org_upload(data, url_base)
         print "> Uploaded report at: %s" % report_url
         review = formulate_review(report_url, report_status,
-                user, config)
+                xpassed, user, config)
     else:
         review = formulate_review("(report was not uploaded)",
-                report_status, user, config)
+                report_status, xpassed, user, config)
     print "> Review:"
     print review
     if config.upload:
