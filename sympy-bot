@@ -134,7 +134,10 @@ See the report for a list of the merge conflicts.""" % atuser
         raise ValueError("Unknown report_status")
 
     details  = get_platform_version(config.interpreter)
-    bold = ("", "**")[config.testcommand != default_testcommand]
+    if config.testcommand != default_testcommand:
+        bold = "**"
+    else:
+        bold = ""
     details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
 
     report = """\
