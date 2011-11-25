@@ -41,6 +41,11 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
     except CmdException:
         return {"result": "fetch", "log": "", "xpassed": ""}
     cmd("cd %s; git checkout test" % master_repo_path, echo=True)
+    # remember the hashes before the merge occurs:
+    master_hash = cmd("cd %s; git rev-parse master" % master_repo_path,
+            capture=True).strip()
+    branch_hash = cmd("cd %s; git rev-parse test" % master_repo_path,
+            capture=True).strip()
     try:
         cmd("cd %s; git merge master" % master_repo_path, echo=True)
     except CmdException:
@@ -51,10 +56,18 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
     log, r = cmd2("cd %s; %s %s" % (master_repo_path,
         interpreter, test_command))
 
+
     xpassed = get_xpassed_info_from_log(log)
     print "Return code:", r
     if r == 0:
         result = "Passed"
     else:
         result = "Failed"
-    return {"result": result, "log": log, "return_code": r, "xpassed": xpassed}
+    return {
+            "result": result,
+            "log": log,
+            "return_code": r,
+            "xpassed": xpassed,
+            "master_hash": master_hash,
+            "branch_hash": branch_hash,
+            }

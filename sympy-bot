@@ -108,7 +108,8 @@ Commands:
         sys.exit(1)
     parser.print_help()
 
-def formulate_review(report_url, report_status, xpassed, user, config):
+def formulate_review(report_url, report_status, xpassed, master_hash,
+        branch_hash, user, config):
     user = user.get("login", None)
 
     if user:
@@ -139,6 +140,8 @@ See the report for a list of the merge conflicts.""" % atuser
     else:
         bold = ""
     details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
+    details += """*master hash*: %s\n""" % master_hash
+    details += """*branch hash*: %s\n""" % branch_hash
     if (report_status == "Passed") and xpassed:
         details += """*XPassed tests:* %s\n""" % len(xpassed)
 
@@ -238,6 +241,9 @@ def review(n, config):
     bot_file = os.path.realpath(os.path.abspath(__file__))
     bot_dir = os.path.dirname(bot_file)
 
+    master_hash = result["master_hash"]
+    branch_hash = result["branch_hash"]
+
     cmd("mkdir -p %s/out" % tmpdir)
     open(log_file, "w").write(log)
     if config.upload:
@@ -249,14 +255,16 @@ def review(n, config):
                 "interpreter": config.interpreter,
                 "testcommand": config.testcommand,
                 "log": log,
+                "master_hash": master_hash,
+                "branch_hash": branch_hash,
                 }
         report_url = reviews_sympy_org_upload(data, url_base)
         print "> Uploaded report at: %s" % report_url
         review = formulate_review(report_url, report_status,
-                xpassed, user, config)
+                xpassed, master_hash, branch_hash, user, config)
     else:
         review = formulate_review("(report was not uploaded)",
-                report_status, xpassed, user, config)
+                report_status, xpassed, master_hash, branch_hash, user, config)
     print "> Review:"
     print review
     if config.upload:
