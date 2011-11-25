@@ -15,7 +15,8 @@ import time
 
 from utils import (cmd, github_get_pull_request,
         github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
-        github_add_comment_to_pull_request, list_pull_requests, format_repo)
+        github_add_comment_to_pull_request, list_pull_requests, format_repo,
+        get_interpreter_version_info)
 from testrunner import run_tests
 
 default_testcommand = "setup.py test"
@@ -109,6 +110,7 @@ Commands:
 
 def formulate_review(report_url, report_status, user, config):
     user = user.get("login", None)
+
     if user:
         atuser = "@"+user+": "
     else:
@@ -119,7 +121,9 @@ def formulate_review(report_url, report_status, user, config):
 %sPlease rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts.""" % atuser
     elif report_status == "fetch":
-        summary = """Could not fetch the branch.  %sPlease run the sympy-bot tests again.""" % atuser
+        summary = """Could not fetch the branch.
+
+%sPlease run the sympy-bot tests again.""" % atuser
     elif report_status == "Failed":
         summary = """There were test failures.
 
@@ -129,24 +133,23 @@ See the report for a list of the merge conflicts.""" % atuser
     else:
         raise ValueError("Unknown report_status")
 
+    details  = get_platform_version(config.interpreter)
+    if config.testcommand != default_testcommand:
+        bold = "**"
+    else:
+        bold = ""
+    details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
+
     report = """\
 Test results html report: %s
 """ % report_url
 
-    if config.interpreter != default_interpreter:
-        report += """
-**Note** A custom interpreter was used: `%s`
-""" % config.interpreter
-
-    if config.testcommand != default_testcommand:
-        report += """
-**Note** A custom test command was used: `%s`
-""" % config.testcommand
-
     report += """
-Summary: %s
+%s
+**Summary:** %s
 
-Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % summary
+Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
+    (details, summary)
 
     return report
 
@@ -169,6 +172,27 @@ def load_config_file():
                 return namespace
 
     return {}
+
+def get_platform_version(interpreter):
+    import sys
+    from os import getenv
+    import platform
+    size = getattr(sys, "maxint", None)
+    if size is None: #Python 3 doesn't have maxint
+        size = sys.maxsize
+    if size > 2**32:
+        architecture = "64-bit"
+    else:
+        architecture = "32-bit"
+    platfotm_system = platform.system()
+    use_cache = getenv('SYMPY_USE_CACHE', 'yes').lower()
+    executable = sys.executable
+    python_version = get_interpreter_version_info(interpreter)
+    r  = "*Interpreter:*   %s  (%s)\n" % (executable, python_version)
+    r += "*Architecture:* %s (%s)\n" % (platfotm_system, architecture)
+    r += "*Cache:*        %s\n" % use_cache
+    return r
+
 
 def review(n, config):
     if config.upload:
