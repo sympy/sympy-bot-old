@@ -8,6 +8,7 @@ import base64
 from urllib import urlencode
 import time
 import sys
+import re
 from getpass import getpass
 
 from jsonrpc import JSONRPCService
@@ -71,6 +72,26 @@ def cmd2(cmd):
 
     return log, r
 
+def get_interpreter_version_info(interpreter):
+    """
+    Get python version of `interpreter`
+    """
+
+    code = 'import sys; print("%s.%s.%s-%s-%s" % sys.version_info[:])'
+    cmd = "%s -c '%s'" % (interpreter, code)
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    ouput = p.stdout.read()
+
+    return ouput.strip()
+
+def get_xpassed_info_from_log(log):
+    re_xpassed = re.compile("\s+_+\s+xpassed tests\s+_+\s+(?P<xpassed>([^\n]+\n)+)\n", re.M)
+    m = re_xpassed.search(log)
+    if m:
+        lines = m.group('xpassed')
+        return lines.splitlines()
+    return []
 
 def github_get_pull_request_all(repo):
     """
