@@ -147,9 +147,15 @@ def pastehtml_upload(source, input_type="html"):
     return s
 
 def reviews_sympy_org_upload(data, url_base):
-    s = JSONRPCService(url_base + "/async")
-    r = s.RPC.upload_task(data["num"], data["result"], data["interpreter"],
-            data["testcommand"], data["log"])
+    while True:
+        try:
+            s = JSONRPCService(url_base + "/async")
+            r = s.RPC.upload_task(data["num"], data["result"],
+                    data["interpreter"], data["testcommand"], data["log"])
+            break
+        except urllib2.HTTPError:
+            print "Error while accessing %s, retrying in 10s" % url_base
+            time.sleep(10)
     return r["task_url"]
 
 def list_pull_requests(repo, numbers_only=False):
