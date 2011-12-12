@@ -5,7 +5,7 @@ import subprocess
 from utils import cmd, cmd2, CmdException, get_xpassed_info_from_log
 
 def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
-        master_repo_path, test_command, interpreter, python3):
+        master_repo_path, test_command, interpreter, python3, master_commit):
     """
     This is a test runner function.
 
@@ -22,6 +22,7 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
 
     4) Returns status, which is one of the following strings:
 
+        error .. there was an error
         fetch ... fetch failed (no tests run)
         conflicts ... there were merge conflicts (no tests run)
         FAILED ... tests run, but failed
@@ -42,12 +43,18 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
         return {"result": "fetch", "log": "", "xpassed": ""}
     cmd("cd %s; git checkout test" % master_repo_path, echo=True)
     # remember the hashes before the merge occurs:
-    master_hash = cmd("cd %s; git rev-parse master" % master_repo_path,
-            capture=True).strip()
+    try:
+        master_hash = cmd("cd %s; git rev-parse %s" % (master_repo_path,
+            master_commit), capture=True).strip()
+    except CmdException:
+        print "Could not parse commit %s." % master_commit
+        return {"result": "error"}
     branch_hash = cmd("cd %s; git rev-parse test" % master_repo_path,
             capture=True).strip()
+
     try:
-        cmd("cd %s; git merge master" % master_repo_path, echo=True)
+        cmd("cd %s; git merge %s" % (master_repo_path, master_commit),
+            echo=True)
     except CmdException:
         return {"result": "conflicts", "log": "", "xpassed": ""}
     if python3:

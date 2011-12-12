@@ -67,3 +67,23 @@ You can change the remote with ``-R`` flag to sympy-bot or by setting
 ``repository`` in configuration file. The new remote doesn't have to be
 SymPy's repository, but any repository on GitHub. Note that in this case
 you man need to setup customized ``testcommand``.
+
+Custom Master Commit
+--------------------
+
+By default, sympy-bot merges with master before testing, failing if the
+merge fails.  You can customize this behavior with the ``-m`` option to
+``sympy-bot``.  Pass any valid git commit name to this option, and it
+will use it to merge the master branch.  The default is
+``origin/master``, which is the current master.  If you don't want to
+merge at all, pass ``HEAD``, which will perform a noop merge against the
+branch you are testing.
+
+If you use ``--reference``, git will pull in all commits from the local
+repository. Thus, you can merge with commits that are not in the
+official ``sympy/sympy`` repository by using this and passing the SHA1
+of the commit you want.
+
+This is also useful for using bisecting a problem with SymPy Bot.
+Simply use git to bisect in your local SymPy repository and pass the
+SHA1's it picks to ``sympy-bot -n -m``.

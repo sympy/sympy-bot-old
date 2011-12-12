@@ -59,6 +59,10 @@ Commands:
             default="http://reviews.sympy.org",
             help="Server to upload results. Default is "
             "'http://reviews.sympy.org'")
+    parser.add_option("-m", "--master-commit",
+            action="store", type="str", dest="master_commit",
+            default="origin/master", help="Commit to use as master for merging."  "Use 'origin/master' to use the current master (the default) "
+            "and 'HEAD' to not merge.")
 
     options, args = parser.parse_args()
     config = load_config_file()
@@ -230,7 +234,10 @@ def review(n, config):
     result = run_tests(format_repo("https://github.com/{repo}.git",
         config.repository),
             repo, branch, tmpdir + "/sympy", config.testcommand,
-            config.interpreter, config.python3)
+            config.interpreter, config.python3, config.master_commit)
+    if result["result"] == "error":
+        print "There was an error. Report not uploaded."
+        sys.exit(1)
     print "Done."
     print
     log_file = "%s/out/log" % tmpdir
@@ -277,3 +284,4 @@ def review(n, config):
 
 if __name__ == "__main__":
     main()
+    sys.exit(0)
