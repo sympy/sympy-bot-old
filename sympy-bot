@@ -142,8 +142,6 @@ See the report for a list of the merge conflicts.""" % atuser
     details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
     details += """*master hash*: %s\n""" % master_hash
     details += """*branch hash*: %s\n""" % branch_hash
-    if (report_status == "Passed") and xpassed:
-        details += """*XPassed tests:* %s\n""" % len(xpassed)
 
     report = """\
 Test results html report: %s
