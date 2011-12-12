@@ -146,15 +146,13 @@ See the report for a list of the merge conflicts.""" % atuser
         details += """*XPassed tests:* %s\n""" % len(xpassed)
 
     report = """\
+**SymPy-Bot Summary:** %s
+
 Test results html report: %s
-""" % report_url
 
-    report += """
 %s
-**Summary:** %s
-
-Automatic review by [sympy-bot](https://github.com/sympy/sympy-bot).""" % \
-    (details, summary)
+Automatic review by [SymPy-Bot](https://github.com/sympy/sympy-bot).""" % \
+    (summary, report_url, details,)
 
     return report
 
