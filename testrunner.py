@@ -29,6 +29,12 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
         PASSED ... tests run, passed
 
     """
+    result = {
+            "log": "",
+            "xpassed": "",
+            "master_hash": "",
+            "branch_hash": "",
+        }
     print "Running tests with the following setup:"
     print "master_repo_url =", master_repo_url
     print "pull_request_repo_url =", pull_request_repo_url
@@ -40,41 +46,39 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
         cmd("cd %s; git fetch %s %s:test" % (master_repo_path,
             pull_request_repo_url, pull_request_branch), echo=True)
     except CmdException:
-        return {"result": "fetch", "log": "", "xpassed": ""}
+        result["result"] = "fetch"
+        return result
     cmd("cd %s; git checkout test" % master_repo_path, echo=True)
     # remember the hashes before the merge occurs:
     try:
-        master_hash = cmd("cd %s; git rev-parse %s" % (master_repo_path,
+        result["master_hash"] = cmd("cd %s; git rev-parse %s" % (master_repo_path,
             master_commit), capture=True).strip()
     except CmdException:
         print "Could not parse commit %s." % master_commit
-        return {"result": "error"}
-    branch_hash = cmd("cd %s; git rev-parse test" % master_repo_path,
+        result["result"]= "error"
+        return result
+    result["branch_hash"] = cmd("cd %s; git rev-parse test" % master_repo_path,
             capture=True).strip()
 
     try:
         cmd("cd %s; git merge %s" % (master_repo_path, master_commit),
             echo=True)
     except CmdException:
-        return {"result": "conflicts", "log": "", "xpassed": ""}
+        result["result"] = "conflicts"
+        return result
     if python3:
         cmd("cd %s; bin/use2to3" % master_repo_path)
         master_repo_path = master_repo_path + "/py3k-sympy"
     log, r = cmd2("cd %s; %s %s" % (master_repo_path,
         interpreter, test_command))
+    result["log"] = log
+    result["return_code"] = r
 
 
-    xpassed = get_xpassed_info_from_log(log)
+    result["xpassed"] = get_xpassed_info_from_log(log)
     print "Return code:", r
     if r == 0:
-        result = "Passed"
+        result["result"] = "Passed"
     else:
-        result = "Failed"
-    return {
-            "result": result,
-            "log": log,
-            "return_code": r,
-            "xpassed": xpassed,
-            "master_hash": master_hash,
-            "branch_hash": branch_hash,
-            }
+        result["result"] = "Failed"
+    return result
