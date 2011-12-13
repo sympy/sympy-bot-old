@@ -95,7 +95,26 @@ Commands:
     elif len(args) >= 2:
         arg1 = args[0]
         if arg1 == "review":
-            nums = [int(x) for x in args[1:]]
+            args = args[1:]
+            if len(args) == 1:
+                if args[0] == "mergeable":
+                    print "Reviewing all *mergeable* pull requests"
+                    print
+                    nonmergeable, mergeable = list_pull_requests( \
+                            options.repository, numbers_only=True)
+                    nums = mergeable
+                elif args[0] == "all":
+                    print "Reviewing *all* pull requests"
+                    print
+                    nonmergeable, mergeable = list_pull_requests( \
+                            options.repository, numbers_only=True)
+                    nums = nonmergeable + mergeable
+                else:
+                    # just a pull request #, convert it:
+                    nums = [int(args[0])]
+            else:
+                # list of pull request numbers, convert it:
+                nums = [int(x) for x in args]
             if options.upload:
                 username, password = github_authenticate(options)
             else:
