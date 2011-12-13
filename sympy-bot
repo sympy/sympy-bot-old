@@ -96,9 +96,13 @@ Commands:
         arg1 = args[0]
         if arg1 == "review":
             nums = [int(x) for x in args[1:]]
+            if options.upload:
+                username, password = github_authenticate(options)
+            else:
+                username = password = None
             try:
                 for n in nums:
-                    review(n, options)
+                    review(n, options, username, password)
             except KeyboardInterrupt:
                 print "\n> Quitting on signal SIGINT."
                 sys.exit(1)
@@ -199,9 +203,7 @@ def get_platform_version(interpreter):
     return r
 
 
-def review(n, config):
-    if config.upload:
-        username, password = github_authenticate(config)
+def review(n, config, username=None, password=None):
     tmpdir = mkdtemp(prefix='sympy-bot-tmp')
     print "> Working directory: %s" % tmpdir
     pull = github_get_pull_request(config.repository, n)
