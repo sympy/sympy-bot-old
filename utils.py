@@ -180,6 +180,12 @@ def reviews_sympy_org_upload(data, url_base):
     return r["task_url"]
 
 def list_pull_requests(repo, numbers_only=False):
+    """
+    Returns the pull requests numbers.
+
+    It returns a tuple of (nonmergeable, mergeable), where "nonmergeable"
+    and "mergeable" are lists of the pull requests numbers.
+    """
     p = github_get_pull_request_all(repo)
     pulls = []
     for pull in p['pulls']:
@@ -195,8 +201,10 @@ def list_pull_requests(repo, numbers_only=False):
         pulls.append((created_at, n, repo, branch, author, mergeable))
     pulls.sort(key=lambda x: x[0])
     print "Patches that cannot be merged without conflicts:"
+    nonmergeable = []
     for created_at, n, repo, branch, author, mergeable in pulls:
         if mergeable: continue
+        nonmergeable.append(int(n))
         if numbers_only:
             print n,
         else:
@@ -208,8 +216,10 @@ def list_pull_requests(repo, numbers_only=False):
     print
     print "-"*80
     print "Patches that can be merged without conflicts:"
+    mergeable_list = []
     for last_change, n, repo, branch, author, mergeable in pulls:
         if not mergeable: continue
+        mergeable_list.append(int(n))
         if numbers_only:
             print n,
         else:
@@ -218,6 +228,7 @@ def list_pull_requests(repo, numbers_only=False):
             print "      Date     : %s" % time.ctime(last_change)
     if numbers_only:
         print
+    return nonmergeable, mergeable_list
 
 _login_message = """\
 Enter your GitHub username & password or press ^C to quit. The password
