@@ -21,6 +21,14 @@ Make an automatic review of a pull request::
 This will run all tests and then comment in the pull request (under your name)
 with the results.
 
+To review all open pull requests, do::
+
+    ./sympy-bot review all
+
+to only review mergeable pull requests, do::
+
+    ./sympy-bot review mergeable
+
 Tips
 ----
 
