@@ -84,6 +84,6 @@ repository. Thus, you can merge with commits that are not in the
 official ``sympy/sympy`` repository by using this and passing the SHA1
 of the commit you want.
 
-This is also useful for using bisecting a problem with SymPy Bot.
-Simply use git to bisect in your local SymPy repository and pass the
-SHA1's it picks to ``sympy-bot -n -m``.
+This is also useful for bisecting problems with SymPy Bot. Simply use
+git to bisect in your local SymPy repository and pass the SHA1's it
+picks to ``sympy-bot -n -m``.
