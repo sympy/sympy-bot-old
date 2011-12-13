@@ -60,11 +60,13 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
     result["branch_hash"] = cmd("cd %s; git rev-parse test" % master_repo_path,
             capture=True).strip()
 
-    try:
-        cmd("cd %s; git merge %s" % (master_repo_path, master_commit),
-            echo=True)
-    except CmdException:
+    merge_log, r = cmd2("cd %s; git merge %s" % (master_repo_path,
+        master_commit))
+    if r != 0:
+        conflicts = cmd("cd %s; git --no-pager diff" % master_repo_path,
+                capture=True)
         result["result"] = "conflicts"
+        result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
         return result
     if python3:
         cmd("cd %s; bin/use2to3" % master_repo_path)
