@@ -40,8 +40,8 @@ connection) by passing a ``--reference`` option to sympy-bot::
     ./sympy-bot --reference ~/repo/git/sympy review 268
 
 This gets passed to git, see ``git clone --help`` for more information. Then
-sympy-bot starts testing the branch immediately, especially if you have a slower
-connections.
+sympy-bot starts testing the branch immediately, even if you have a slower
+connection.
 
 This has another advantage: if you run ``./use/2to3`` in the reference
 directory, the ``py3k-sympy`` directory will be copied over to the testing
