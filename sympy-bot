@@ -16,7 +16,7 @@ import time
 from utils import (cmd, github_get_pull_request,
         github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
         github_add_comment_to_pull_request, list_pull_requests, format_repo,
-        get_interpreter_version_info)
+        get_interpreter_version_info, CmdException)
 from testrunner import run_tests
 
 default_testcommand = "setup.py test"
@@ -249,7 +249,11 @@ def review(n, config, username=None, password=None):
         cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
         if config.python3 and not config.py3k_no_copy:
             print "> Copying py3k-sympy directory"
-            cmd("cp -R %s/py3k-sympy %s/sympy/" % (reference, tmpdir))
+            try:
+                cmd("cp -R %s/py3k-sympy %s/sympy/" % (reference, tmpdir))
+            except CmdException:
+                print "> Could not copy the py3k-sympy directory from %s. It probably doesn't exist." % reference
+                print "  Run ./bin/2to3 in that directory to generate this directory, which will make this go much faster."
     else:
         cmd(format_repo("cd %s; git clone git://github.com/{repo}.git",
             config.repository) % tmpdir)
