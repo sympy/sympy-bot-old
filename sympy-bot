@@ -63,6 +63,9 @@ Commands:
             action="store", type="str", dest="master_commit",
             default="origin/master", help="Commit to use as master for merging."  "Use 'origin/master' to use the current master (the default) "
             "and 'HEAD' to not merge.")
+    parser.add_option("--py3k-no-copy",
+            action="store_true", default=False, dest="py3k_no_copy",
+            help="Do not copy the py3k-sympy directory (only applies if --reference is given).")
 
     options, args = parser.parse_args()
     config = load_config_file()
@@ -75,7 +78,8 @@ Commands:
         options.testcommand = config.get("testcommand", default_testcommand)
     if options.interpreter is None:
         options.interpreter = config.get("interpreter", default_interpreter)
-
+    if options.py3k_no_copy is None:
+        options.py3k_no_copy = config.get("py3k_no_copy")
     if options.python3:
         options.interpreter = "python3"
 
@@ -243,6 +247,9 @@ def review(n, config, username=None, password=None):
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
         cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
+        if config.python3 and not config.py3k_no_copy:
+            print "> Copying py3k-sympy directory"
+            cmd("cp -R %s/py3k-sympy %s/sympy/" % (reference, tmpdir))
     else:
         cmd(format_repo("cd %s; git clone git://github.com/{repo}.git",
             config.repository) % tmpdir)

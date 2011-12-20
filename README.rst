@@ -35,13 +35,20 @@ Tips
 By default, the sympy repository is fully downloaded from the web, so you don't
 need to have any local copy. However, if you do have a local copy already, you
 can skip most of the download (which might take a few minutes on slower
-connections) by passing a ``--reference`` option to sympy-bot::
+connection) by passing a ``--reference`` option to sympy-bot::
 
     ./sympy-bot --reference ~/repo/git/sympy review 268
 
 This gets passed to git, see ``git clone --help`` for more information. Then
-sympy-bot starts testing the branch immediately, even if you have a slower
+sympy-bot starts testing the branch immediately, especially if you have a slower
 connections.
+
+This has another advantage: if you run ``./use/2to3`` in the reference
+directory, the ``py3k-sympy`` directory will be copied over to the testing
+directory, saving time (only those files that are changed by the pull request
+will have to be converted by 2to3 again).  If you want to disable this, add
+the ``--py3k-no-copy`` option to sympy-bot, or add ``py3k_no_copy = True`` to
+your ``sympy-bot.conf`` file (see the next section).
 
 Configuration
 -------------
