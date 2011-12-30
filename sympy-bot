@@ -29,7 +29,9 @@ def main():
 Commands:
 
   review NNN            Reviews the pull request NNN; You can specify more than
-                        one number to review several pull requests in a series
+                        one number to review several pull requests in a series.
+                        You can also specify 'all' and 'mergeable' instead of
+                        NNN to review all or only all mergeable pull requests.
   list                  Lists all open pull requests
   list-numbers          Lists only the numbers of open pull requests;
                         Suitable for piping into 'xargs -L 1 sympy-bot review'""")
