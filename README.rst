@@ -43,7 +43,7 @@ This gets passed to git, see ``git clone --help`` for more information. Then
 sympy-bot starts testing the branch immediately, even if you have a slower
 connection.
 
-This has another advantage: if you run ``./use/2to3`` in the reference
+This has another advantage: if you run ``./bin/use2to3`` in the reference
 directory, the ``py3k-sympy`` directory will be copied over to the testing
 directory, saving time (only those files that are changed by the pull request
 will have to be converted by 2to3 again).  If you want to disable this, add
