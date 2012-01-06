@@ -258,9 +258,9 @@ def review(n, config, username=None, password=None):
 
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
-        cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
+        cmd(format_repo("cd %s && git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
     else:
-        cmd(format_repo("cd %s; git clone git://github.com/{repo}.git",
+        cmd(format_repo("cd %s && git clone git://github.com/{repo}.git",
             config.repository) % tmpdir)
 
     print "> Testing..."

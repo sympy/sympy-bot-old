@@ -43,35 +43,35 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
     print "test_command =", test_command
     print "interpreter =", interpreter
     try:
-        cmd("cd %s; git fetch %s %s:test" % (master_repo_path,
+        cmd("cd %s && git fetch %s %s:test" % (master_repo_path,
             pull_request_repo_url, pull_request_branch), echo=True)
     except CmdException:
         result["result"] = "fetch"
         return result
-    cmd("cd %s; git checkout test" % master_repo_path, echo=True)
+    cmd("cd %s && git checkout test" % master_repo_path, echo=True)
     # remember the hashes before the merge occurs:
     try:
-        result["master_hash"] = cmd("cd %s; git rev-parse %s" % (master_repo_path,
+        result["master_hash"] = cmd("cd %s && git rev-parse %s" % (master_repo_path,
             master_commit), capture=True).strip()
     except CmdException:
         print "Could not parse commit %s." % master_commit
         result["result"]= "error"
         return result
-    result["branch_hash"] = cmd("cd %s; git rev-parse test" % master_repo_path,
+    result["branch_hash"] = cmd("cd %s && git rev-parse test" % master_repo_path,
             capture=True).strip()
 
-    merge_log, r = cmd2("cd %s; git merge %s" % (master_repo_path,
+    merge_log, r = cmd2("cd %s && git merge %s" % (master_repo_path,
         master_commit))
     if r != 0:
-        conflicts = cmd("cd %s; git --no-pager diff" % master_repo_path,
+        conflicts = cmd("cd %s && git --no-pager diff" % master_repo_path,
                 capture=True)
         result["result"] = "conflicts"
         result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
         return result
     if python3:
-        cmd("cd %s; bin/use2to3" % master_repo_path)
+        cmd("cd %s && bin/use2to3" % master_repo_path)
         master_repo_path = master_repo_path + "/py3k-sympy"
-    log, r = cmd2("cd %s; %s %s" % (master_repo_path,
+    log, r = cmd2("cd %s && %s %s" % (master_repo_path,
         interpreter, test_command))
     result["log"] = log
     result["return_code"] = r
