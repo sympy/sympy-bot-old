@@ -209,7 +209,7 @@ def list_pull_requests(repo, numbers_only=False):
             print n,
         else:
             print "#%03d: %s %s" % (n, repo, branch)
-            print "      Author   : %s" % author
+            print unicode("      Author   : %s" % author).encode('utf8')
             print "      Date     : %s" % time.ctime(created_at)
     if numbers_only:
         print
@@ -224,7 +224,7 @@ def list_pull_requests(repo, numbers_only=False):
             print n,
         else:
             print "#%03d: %s %s" % (n, repo, branch)
-            print "      Author   : %s" % author
+            print unicode("      Author   : %s" % author).encode('utf8')
             print "      Date     : %s" % time.ctime(last_change)
     if numbers_only:
         print
