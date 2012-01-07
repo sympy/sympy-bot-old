@@ -187,7 +187,10 @@ Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot).""" % \
     return report
 
 def load_config_file():
-    conf_file = os.path.expanduser('~/.sympy/sympy-bot.conf')
+    conf_file = os.path.normpath('.sympy/sympy-bot.conf')
+    conf_file = os.path.join('~', conf_file)
+    conf_file = os.path.expanduser(conf_file)
+    print conf_file
 
     if os.path.exists(conf_file):
         namespace = {}
@@ -273,7 +276,7 @@ def review(n, config, username=None, password=None):
         sys.exit(1)
     print "Done."
     print
-    log_file = "%s/out/log" % tmpdir
+    log_file = os.path.join("%s" % tmpdir, "out", "log")
     print "View log at: %s" % log_file
     log = result["log"]
     report_status = result["result"]
@@ -284,7 +287,7 @@ def review(n, config, username=None, password=None):
     master_hash = result["master_hash"]
     branch_hash = result["branch_hash"]
 
-    cmd("mkdir -p %s/out" % tmpdir)
+    cmd("mkdir -p %s" % os.path.join(tmpdir, "out"))
     open(log_file, "w").write(log)
     if config.upload:
         print "> Uploading test results"
