@@ -77,8 +77,8 @@ def get_interpreter_version_info(interpreter):
     Get python version of `interpreter`
     """
 
-    code = 'import sys; print("%s.%s.%s-%s-%s" % sys.version_info[:])'
-    cmd = "%s -c '%s'" % (interpreter, code)
+    code = "import sys; print('%s.%s.%s-%s-%s' % sys.version_info[:])"
+    cmd = '%s -c "%s"' % (interpreter, code)
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
     ouput = p.stdout.read()

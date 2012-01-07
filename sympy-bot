@@ -287,7 +287,11 @@ def review(n, config, username=None, password=None):
     master_hash = result["master_hash"]
     branch_hash = result["branch_hash"]
 
-    cmd("mkdir -p %s" % os.path.join(tmpdir, "out"))
+    if os.name=='nt':
+        mkdir_command = "mkdir"
+    else:
+        mkdir_command = "mkdir -p"
+    cmd("%s %s" % (mkdir_command, os.path.join(tmpdir, "out")))
     open(log_file, "w").write(log)
     if config.upload:
         print "> Uploading test results"
