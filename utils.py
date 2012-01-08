@@ -85,6 +85,19 @@ def get_interpreter_version_info(interpreter):
 
     return ouput.strip()
 
+def get_interpreter_exe(interpreter):
+    """
+    Get python executable path for 'nt'
+    """
+
+    code = "import sys; print(sys.executable)"
+    cmd = '%s -c "%s"' % (interpreter, code)
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    ouput = p.stdout.read()
+
+    return ouput.strip()
+
 def get_xpassed_info_from_log(log):
     re_xpassed = re.compile("\s+_+\s+xpassed tests\s+_+\s+(?P<xpassed>([^\n]+\n)+)\n", re.M)
     m = re_xpassed.search(log)

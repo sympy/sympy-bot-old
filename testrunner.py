@@ -69,7 +69,7 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
         result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
         return result
     if python3:
-        cmd("cd %s && bin/use2to3" % master_repo_path)
+        cmd("cd %s && python bin/use2to3" % master_repo_path)
         master_repo_path = master_repo_path + "/py3k-sympy"
     log, r = cmd2("cd %s && %s %s" % (master_repo_path,
         interpreter, test_command))
