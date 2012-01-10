@@ -65,6 +65,9 @@ Commands:
             action="store", type="str", dest="master_commit",
             default="origin/master", help="Commit to use as master for merging."  "Use 'origin/master' to use the current master (the default) "
             "and 'HEAD' to not merge.")
+    parser.add_option("--no-comment",
+            action="store_false", default=True, dest="comment",
+            help="Don't submit a summary comment to the pull request (but still upload the test report).")
 
     options, args = parser.parse_args()
     config = load_config_file()
@@ -304,7 +307,7 @@ def review(n, config, username=None, password=None):
                 report_status, xpassed, master_hash, branch_hash, user, config)
     print "> Review:"
     print review
-    if config.upload:
+    if config.upload and config.comment:
         print "> Uploading the review to the GitHub pull request ..."
         github_add_comment_to_pull_request(config.repository, n, review,
                 username, password)
