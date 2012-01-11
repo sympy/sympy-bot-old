@@ -21,6 +21,7 @@ from testrunner import run_tests
 
 default_testcommand = "setup.py test"
 default_interpreter = "python"
+default_interpreter3 = "python3"
 
 def main():
     parser = OptionParser(usage="""\
@@ -79,10 +80,10 @@ Commands:
     if options.testcommand is None:
         options.testcommand = config.get("testcommand", default_testcommand)
     if options.interpreter is None:
-        options.interpreter = config.get("interpreter", default_interpreter)
-
-    if options.python3:
-        options.interpreter = "python3"
+        if options.python3:
+            options.interpreter = config.get("interpreter3", default_interpreter3)
+        else:
+            options.interpreter = config.get("interpreter", default_interpreter)
 
     options.user = config.get("user")
     options.token = config.get("token")
@@ -239,6 +240,14 @@ def get_platform_version(interpreter):
 
 
 def review(n, config, username=None, password=None):
+    # Make sure python3 is setup correctly
+    # If set Python 3 interpreter with -i, be sure python3 is True
+    if get_interpreter_version_info(config.interpreter)[0] == '3':
+        config.python3 = True
+    # If set Python 2 interpreter with -i and set -3, raise error
+    elif config.python3:
+        raise ValueError('Python 2 interpreter passed with -3 option')
+
     tmpdir = mkdtemp(prefix='sympy-bot-tmp')
     print "> Working directory: %s" % tmpdir
     pull = github_get_pull_request(config.repository, n)
