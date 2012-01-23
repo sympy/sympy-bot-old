@@ -16,7 +16,7 @@ import time
 from utils import (cmd, github_get_pull_request,
         github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
         github_add_comment_to_pull_request, list_pull_requests, format_repo,
-        get_interpreter_version_info)
+        get_interpreter_version_info, get_interpreter_exe)
 from testrunner import run_tests
 
 default_testcommand = "setup.py test"
@@ -188,7 +188,10 @@ Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot).""" % \
     return report
 
 def load_config_file():
-    conf_file = os.path.expanduser('~/.sympy/sympy-bot.conf')
+    conf_file = os.path.normpath('.sympy/sympy-bot.conf')
+    conf_file = os.path.join('~', conf_file)
+    conf_file = os.path.expanduser(conf_file)
+    print conf_file
 
     if os.path.exists(conf_file):
         namespace = {}
@@ -210,6 +213,9 @@ def load_config_file():
 def get_executable(interpreter):
     path = os.environ['PATH']
     paths = path.split(os.pathsep)
+    interpreter_exe = None
+    if os.name=="nt":
+        return get_interpreter_exe(interpreter)
     if os.path.isfile(interpreter):
         return interpreter
     else:
@@ -237,7 +243,6 @@ def get_platform_version(interpreter):
     r += "*Architecture:* %s (%s)\n" % (platfotm_system, architecture)
     r += "*Cache:*        %s\n" % use_cache
     return r
-
 
 def review(n, config, username=None, password=None):
     # Make sure python3 is setup correctly
@@ -267,9 +272,9 @@ def review(n, config, username=None, password=None):
 
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
-        cmd(format_repo("cd %s; git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
+        cmd(format_repo("cd %s && git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
     else:
-        cmd(format_repo("cd %s; git clone git://github.com/{repo}.git",
+        cmd(format_repo("cd %s && git clone git://github.com/{repo}.git",
             config.repository) % tmpdir)
 
     print "> Testing..."
@@ -282,7 +287,7 @@ def review(n, config, username=None, password=None):
         sys.exit(1)
     print "Done."
     print
-    log_file = "%s/out/log" % tmpdir
+    log_file = os.path.join("%s" % tmpdir, "out", "log")
     print "View log at: %s" % log_file
     log = result["log"]
     report_status = result["result"]
@@ -293,7 +298,11 @@ def review(n, config, username=None, password=None):
     master_hash = result["master_hash"]
     branch_hash = result["branch_hash"]
 
-    cmd("mkdir -p %s/out" % tmpdir)
+    if os.name=='nt':
+        mkdir_command = "mkdir"
+    else:
+        mkdir_command = "mkdir -p"
+    cmd("%s %s" % (mkdir_command, os.path.join(tmpdir, "out")))
     open(log_file, "w").write(log)
     if config.upload:
         print "> Uploading test results"

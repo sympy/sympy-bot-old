@@ -77,8 +77,21 @@ def get_interpreter_version_info(interpreter):
     Get python version of `interpreter`
     """
 
-    code = 'import sys; print("%s.%s.%s-%s-%s" % sys.version_info[:])'
-    cmd = "%s -c '%s'" % (interpreter, code)
+    code = "import sys; print('%s.%s.%s-%s-%s' % sys.version_info[:])"
+    cmd = '%s -c "%s"' % (interpreter, code)
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    ouput = p.stdout.read()
+
+    return ouput.strip()
+
+def get_interpreter_exe(interpreter):
+    """
+    Get python executable path for 'nt'
+    """
+
+    code = "import sys; print(sys.executable)"
+    cmd = '%s -c "%s"' % (interpreter, code)
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
     ouput = p.stdout.read()
@@ -209,7 +222,7 @@ def list_pull_requests(repo, numbers_only=False):
             print n,
         else:
             print "#%03d: %s %s" % (n, repo, branch)
-            print "      Author   : %s" % author
+            print unicode("      Author   : %s" % author).encode('utf8')
             print "      Date     : %s" % time.ctime(created_at)
     if numbers_only:
         print
@@ -224,7 +237,7 @@ def list_pull_requests(repo, numbers_only=False):
             print n,
         else:
             print "#%03d: %s %s" % (n, repo, branch)
-            print "      Author   : %s" % author
+            print unicode("      Author   : %s" % author).encode('utf8')
             print "      Date     : %s" % time.ctime(last_change)
     if numbers_only:
         print
