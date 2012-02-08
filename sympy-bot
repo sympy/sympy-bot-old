@@ -264,7 +264,7 @@ def review(n, config, username=None, password=None):
     author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
                             pull["user"].get("email", ""))
     print "> Pull request info:"
-    print ">     Author: %s" % author
+    print unicode(">     Author: %s" % author).encode('utf8')
     print ">     Repository: %s" % repo
     print ">     Branch: %s" % branch
 
