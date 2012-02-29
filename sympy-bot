@@ -22,6 +22,7 @@ from testrunner import run_tests
 default_testcommand = "setup.py test"
 default_interpreter = "python"
 default_interpreter3 = "python3"
+default_proto = 'https'
 
 def main():
     parser = OptionParser(usage="""\
@@ -69,6 +70,11 @@ Commands:
     parser.add_option("--no-comment",
             action="store_false", default=True, dest="comment",
             help="Don't submit a summary comment to the pull request (but still upload the test report).")
+    parser.add_option("-p", "--protocol",
+            type='choice', choices=['https', 'git',],
+            action="store", default="https", dest="proto",
+            help="Choose git protocol if https failed")
+
 
     options, args = parser.parse_args()
     config = load_config_file()
@@ -84,6 +90,7 @@ Commands:
             options.interpreter = config.get("interpreter3", default_interpreter3)
         else:
             options.interpreter = config.get("interpreter", default_interpreter)
+    proto = options.proto if options.proto != default_proto else default_proto
 
     options.user = config.get("user")
     options.token = config.get("token")
@@ -127,7 +134,9 @@ Commands:
                 username = password = None
             try:
                 for n in nums:
-                    review(n, options, username, password)
+                    review(n, options, username=username, password=password, \
+                           proto=proto
+                          )
             except KeyboardInterrupt:
                 print "\n> Quitting on signal SIGINT."
                 sys.exit(1)
@@ -244,9 +253,12 @@ def get_platform_version(interpreter):
     r += "*Cache:*        %s\n" % use_cache
     return r
 
-def review(n, config, username=None, password=None):
+def review(n, config, **kwargs):
     # Make sure python3 is setup correctly
     # If set Python 3 interpreter with -i, be sure python3 is True
+    username = kwargs.get("username", None)
+    password = kwargs.get("password", None)
+    proto = kwargs.get("proto", None) or default_proto
     if get_interpreter_version_info(config.interpreter)[0] == '3':
         config.python3 = True
     # If set Python 2 interpreter with -i and set -3, raise error
@@ -259,6 +271,7 @@ def review(n, config, username=None, password=None):
     assert pull['number'] == n
     print "> Reviewing pull request #%d" % n
     repo = pull['head']['repository']['url']
+    repo = repo.replace(default_proto, proto) if proto != default_proto else repo
     branch = pull['head']['ref']
     user = pull["user"]
     author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
