@@ -234,12 +234,16 @@ def get_executable(interpreter):
                 return f
 
 def get_platform_version(interpreter):
-    import sys
     from os import getenv
     import platform
-    size = getattr(sys, "maxint", None)
-    if size is None: #Python 3 doesn't have maxint
-        size = sys.maxsize
+    code = 'import sys; print(getattr(sys, "maxint", None))'
+    call = "%s -c '%s'" % (interpreter, code)
+    size = cmd(call, capture=True)
+    if size == 'None\n': #Python 3 doesn't have maxint
+        code = 'import sys; print(sys.maxsize)'
+        call = "%s -c '%s'" % (interpreter, code)
+        size = cmd(call, capture=True)
+    size = int(size)
     if size > 2**32:
         architecture = "64-bit"
     else:
