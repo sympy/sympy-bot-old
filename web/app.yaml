@@ -12,5 +12,5 @@ handlers:
 - url: /update
   script: main.py
   login: admin
-- url: /*
+- url: /.*
   script: main.py
