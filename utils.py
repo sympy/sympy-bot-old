@@ -1,5 +1,5 @@
 import json
-from urllib2 import urlopen
+from urllib2 import urlopen, URLError
 import subprocess
 import os
 from os.path import expandvars
@@ -118,7 +118,18 @@ def github_get_pull_request(repo, n):
     Returns pull request 'n'.
     """
     url = format_repo('http://github.com/api/v2/json/pulls/{repo}/%d', repo)
-    data = json.load(urlopen(url % n))
+
+    timer = 1
+    while True:
+        try:
+            data = json.load(urlopen(url % n))
+            break
+        except URLError:
+            print "Could not get pull request, retrying in %d seconds..." % timer
+
+            time.sleep(timer)
+            timer *= 2
+
     return data["pull"]
 
 def github_check_authentication(username, password):
@@ -162,13 +173,15 @@ def pastehtml_upload(source, input_type="html"):
     url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
     request = urllib2.Request(url % input_type, data=urlencode([("txt", source)]))
 
+    timer = 1
     while True:
         try:
             result = urllib2.urlopen(request)
             break
         except urllib2.HTTPError:
-            print "Error while accessing pastehtml.com, retrying in 2s"
-            time.sleep(2)
+            print "Error while accessing pastehtml.com, retrying in %d seconds..." % timer
+            time.sleep(timer)
+            timer *= 2
 
     s = result.read()
     # There is a bug at pastehtml.com, that sometimes it returns:
@@ -181,6 +194,7 @@ def pastehtml_upload(source, input_type="html"):
     return s
 
 def reviews_sympy_org_upload(data, url_base):
+    timer = 1
     while True:
         try:
             s = JSONRPCService(url_base + "/async")
@@ -188,8 +202,9 @@ def reviews_sympy_org_upload(data, url_base):
                     data["interpreter"], data["testcommand"], data["log"])
             break
         except urllib2.HTTPError:
-            print "Error while accessing %s, retrying in 10s" % url_base
-            time.sleep(10)
+            print "Error while accessing %s, retrying in %d seconds..." % (url_base, timer)
+            time.sleep(timer)
+            timer *= 2
     return r["task_url"]
 
 def list_pull_requests(repo, numbers_only=False):
