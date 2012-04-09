@@ -159,20 +159,20 @@ def formulate_review(report_url, report_status, xpassed, master_hash,
     else:
         atuser = ""
     if report_status == "conflicts":
-        summary = """There were merge conflicts; could not test the branch.
+        summary = """:exclamation: There were merge conflicts; could not test the branch.
 
 %sPlease rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts.""" % atuser
     elif report_status == "fetch":
-        summary = """Could not fetch the branch.
+        summary = """:x: Could not fetch the branch.
 
 %sPlease run the sympy-bot tests again.""" % atuser
     elif report_status == "Failed":
-        summary = """There were test failures.
+        summary = """:red_circle: There were test failures.
 
 %sPlease fix the test failures.""" % atuser
     elif report_status == "Passed":
-        summary = """All tests have passed."""
+        summary = """:eight_spoked_asterisk: All tests have passed."""
     else:
         raise ValueError("Unknown report_status")
 
