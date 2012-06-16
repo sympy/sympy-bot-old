@@ -16,7 +16,7 @@ import time
 from utils import (cmd, github_get_pull_request,
         github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
         github_add_comment_to_pull_request, list_pull_requests, format_repo,
-        get_interpreter_version_info, get_interpreter_exe)
+        get_interpreter_version_info, get_interpreter_exe, github_get_user_info)
 from testrunner import run_tests
 
 default_testcommand = "setup.py test"
@@ -93,7 +93,7 @@ Commands:
     proto = options.proto if options.proto != default_proto else default_proto
 
     options.user = config.get("user")
-    options.token = config.get("token")
+    options.password = config.get("password")
 
     if len(args) == 1:
         arg, = args
@@ -267,19 +267,20 @@ def review(n, config, **kwargs):
         config.python3 = True
     # If set Python 2 interpreter with -i and set -3, raise error
     elif config.python3:
-        raise ValueError('Python 2 interpreter passed with -3 option')
+        raise ValueError("Python 2 interpreter passed with -3 option")
 
-    tmpdir = mkdtemp(prefix='sympy-bot-tmp')
+    tmpdir = mkdtemp(prefix="sympy-bot-tmp")
     print "> Working directory: %s" % tmpdir
-    pull = github_get_pull_request(config.repository, n)
-    assert pull['number'] == n
+    pull = github_get_pull_request(n)
+    assert pull["number"] == n
     print "> Reviewing pull request #%d" % n
-    repo = pull['head']['repository']['url']
+    repo = pull["head"]['repo']["html_url"]
     repo = repo.replace(default_proto, proto) if proto != default_proto else repo
-    branch = pull['head']['ref']
-    user = pull["user"]
-    author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
-                            pull["user"].get("email", ""))
+    branch = pull["head"]["ref"]
+    user = pull["head"]["user"]
+    user_info = github_get_user_info(username)
+    author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
+                              user_info.get("email", ""))
     print "> Pull request info:"
     print unicode(">     Author: %s" % author).encode('utf8')
     print ">     Repository: %s" % repo
@@ -344,8 +345,7 @@ def review(n, config, **kwargs):
     print review
     if config.upload and config.comment:
         print "> Uploading the review to the GitHub pull request ..."
-        github_add_comment_to_pull_request(config.repository, n, review,
-                username, password)
+        github_add_comment_to_pull_request(username, password, n, review)
         print ">     Done."
         print format_repo("> Check the results: https://github.com/{repo}/pull/%d", config.repository) % n
     print "> Merged pull request available in: %s" % tmpdir

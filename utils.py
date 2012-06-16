@@ -1,17 +1,9 @@
-import json
-from urllib2 import urlopen, URLError
-import subprocess
-import os
-from os.path import expandvars
-import urllib2
-import base64
-from urllib import urlencode
-import time
-import sys
-import re
-from getpass import getpass
+import sys, os, re, subprocess, base64, urllib2, time, json
 
+from getpass import getpass
 from jsonrpc import JSONRPCService
+
+import gh_values
 
 class CmdException(Exception):
     pass
@@ -36,7 +28,7 @@ def cmd(s, capture=False, ok_exit_code_list=None, echo=False):
         ok_exit_code_list = [0]
     if echo:
         print s
-    s = expandvars(s)
+    s = os.path.expandvars(s)
     if capture:
         p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT)
@@ -106,61 +98,65 @@ def get_xpassed_info_from_log(log):
         return lines.splitlines()
     return []
 
-def github_get_pull_request_all(repo):
+def github_get_pull_request_all():
     """
     Returns all github pull requests.
     """
-    return json.load(urlopen( \
-            format_repo('http://github.com/api/v2/json/pulls/{repo}', repo)))
+    url = gh_values.gh_pull_list_url
+    return query2github(url)
 
-def github_get_pull_request(repo, n):
+def github_get_pull_request(n):
     """
     Returns pull request 'n'.
     """
-    url = format_repo('http://github.com/api/v2/json/pulls/{repo}/%d', repo)
-
+    url = gh_values.gh_pull_template % n
     timer = 1
     while True:
         try:
-            data = json.load(urlopen(url % n))
+            pull = query2github(url)
             break
-        except URLError:
+        except urllib2.URLError:
             print "Could not get pull request, retrying in %d seconds..." % timer
-
             time.sleep(timer)
             timer *= 2
 
-    return data["pull"]
+    return pull
+
+def github_get_user_info(username):
+    url = gh_values.gh_user_info_template % username
+    timer = 1
+    while True:
+        try:
+            user_info = query2github(url)
+            break
+        except urllib2.URLError:
+            print "Could not get user information, retrying in %d seconds..." % timer
+            time.sleep(timer)
+            timer *= 2
+
+    return user_info
 
 def github_check_authentication(username, password):
     """
     Checks that username & password is valid.
     """
-    if username.endswith('/token'):
-        user = username[:-6]
-    else:
-        user = username
+    url = gh_values.gh_api_url
+    query2github(url, username, password)
 
-    request = urllib2.Request("https://github.com/api/v2/json/user/show/%s" % user)
-    base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
-    request.add_header("Authorization", "Basic %s" % base64string)
-    s = json.load(urllib2.urlopen(request))
-    if not ("user" in s and "plan" in s["user"]):
-        raise AuthenticationFailed("invalid username or password")
-
-def github_add_comment_to_pull_request(repo, n, comment, username, password):
+def github_add_comment_to_pull_request(username, password, n, comment):
     """
     Adds a 'comment' to the pull request 'n'.
 
     Currently it needs github username and password (as strings).
     """
-    request = urllib2.Request(format_repo( \
-            "https://github.com/api/v2/json/issues/comment/{repo}/%d", repo) % \
-            n, data=urlencode([("comment", comment)]))
-    base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
-    request.add_header("Authorization", "Basic %s" % base64string)
-    s = json.load(urllib2.urlopen(request))
-    assert s["comment"]["body"] == comment
+    enc_comment = json.dumps(
+        {
+            "body" : comment
+        }
+    )
+    url = gh_values.gh_issue_comment_template % n
+    response = query2github(url, username, password, enc_comment)
+    assert response["body"] == comment
 
 def pastehtml_upload(source, input_type="html"):
     """
@@ -171,7 +167,7 @@ def pastehtml_upload(source, input_type="html"):
 
     """
     url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
-    request = urllib2.Request(url % input_type, data=urlencode([("txt", source)]))
+    request = urllib2.Request(url % input_type, data=urllib.urlencode([("txt", source)]))
 
     timer = 1
     while True:
@@ -214,23 +210,30 @@ def list_pull_requests(repo, numbers_only=False):
     It returns a tuple of (nonmergeable, mergeable), where "nonmergeable"
     and "mergeable" are lists of the pull requests numbers.
     """
-    p = github_get_pull_request_all(repo)
-    pulls = []
-    for pull in p['pulls']:
-        n = pull['number']
-        repo = pull['head']['repository']['url']
-        branch = pull['head']['ref']
-        author = '"%s" <%s>' % (pull["user"].get("name", "unknown"),
-                                pull["user"].get("email", ""))
-        mergeable = pull["mergeable"]
+    pulls = github_get_pull_request_all()
+    formated_pulls = []
+    print "Total pull count", len(pulls)
+    sys.stdout.write("Processing pulls...")
+    for pull in pulls:
+        n = pull["number"]
+        sys.stdout.write(" %d" % n)
+        sys.stdout.flush()
+        pull_info = github_get_pull_request(n)
+        mergeable = pull_info["mergeable"]
+        repo = pull["head"]["repo"]["html_url"]
+        branch = pull["head"]["ref"]
         created_at = pull["created_at"]
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
-        pulls.append((created_at, n, repo, branch, author, mergeable))
-    pulls.sort(key=lambda x: x[0])
-    print "Patches that cannot be merged without conflicts:"
+        username = pull["head"]["user"]["login"]
+        user_info = github_get_user_info(username)
+        author = '"%s" <%s>' % (user_info.get("name", "unknown"),
+                                user_info.get("email", ""))
+        formated_pulls.append((created_at, n, repo, branch, author, mergeable))
+    formated_pulls.sort(key=lambda x: x[0])
+    print "\nPatches that cannot be merged without conflicts:"
     nonmergeable = []
-    for created_at, n, repo, branch, author, mergeable in pulls:
+    for created_at, n, repo, branch, author, mergeable in formated_pulls:
         if mergeable: continue
         nonmergeable.append(int(n))
         if numbers_only:
@@ -245,7 +248,7 @@ def list_pull_requests(repo, numbers_only=False):
     print "-"*80
     print "Patches that can be merged without conflicts:"
     mergeable_list = []
-    for last_change, n, repo, branch, author, mergeable in pulls:
+    for last_change, n, repo, branch, author, mergeable in formated_pulls:
         if not mergeable: continue
         mergeable_list.append(int(n))
         if numbers_only:
@@ -281,9 +284,8 @@ def github_authenticate(config):
     if config.user:
         username = config.user
 
-        if config.token:
-            username = username + '/token'
-            password = config.token
+        if config.password:
+            password = config.password
 
             try:
                 print "> Checking username and password ..."
@@ -302,3 +304,33 @@ def github_authenticate(config):
         password = get_password()
 
     return username, password
+
+def query2github(url, username="", password="", data=""):
+    """
+    Query github API,
+    if username and password presented, then query executed from user account
+    """
+    request = urllib2.Request(url)
+    # Add authentication headers to request, if username and password presented
+    if username is not "" and password is not "":
+        base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
+        request.add_header("Authorization", "Basic %s" % base64string)
+    if data is not "":
+        request.add_data(data)
+    try:
+        http_response = urllib2.urlopen(request)
+        response_body = json.load(urllib2.urlopen(request))
+    except urllib2.HTTPError, e:
+        # Auth exception
+        if e.code == 401:
+            raise AuthenticationFailed("invalid username or password")
+        # Other exceptions
+        raise urllib2.HTTPError(e.filename, e.code, e.msg, None, None)
+    except ValueError, e:
+        # If auth was successful
+        if http_response.code in (204, 302):
+            return []
+        # else return original error
+        raise ValueError(e)
+
+    return response_body
