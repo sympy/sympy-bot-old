@@ -1,6 +1,16 @@
-import sys, os, re, subprocess, base64, urllib2, time, json
-
+import json
+from urllib2 import urlopen, URLError
+import subprocess
+import os
+from os.path import expandvars
+import urllib2
+import base64
+from urllib import urlencode
+import time
+import sys
+import re
 from getpass import getpass
+
 from jsonrpc import JSONRPCService
 
 import gh_values
@@ -28,7 +38,7 @@ def cmd(s, capture=False, ok_exit_code_list=None, echo=False):
         ok_exit_code_list = [0]
     if echo:
         print s
-    s = os.path.expandvars(s)
+    s = expandvars(s)
     if capture:
         p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT)
@@ -115,7 +125,7 @@ def github_get_pull_request(n):
         try:
             pull = query2github(url)
             break
-        except urllib2.URLError:
+        except URLError:
             print "Could not get pull request, retrying in %d seconds..." % timer
             time.sleep(timer)
             timer *= 2
@@ -129,7 +139,7 @@ def github_get_user_info(username):
         try:
             user_info = query2github(url)
             break
-        except urllib2.URLError:
+        except URLError:
             print "Could not get user information, retrying in %d seconds..." % timer
             time.sleep(timer)
             timer *= 2
@@ -167,7 +177,7 @@ def pastehtml_upload(source, input_type="html"):
 
     """
     url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
-    request = urllib2.Request(url % input_type, data=urllib.urlencode([("txt", source)]))
+    request = urllib2.Request(url % input_type, data=urlencode([("txt", source)]))
 
     timer = 1
     while True:
@@ -227,7 +237,7 @@ def list_pull_requests(repo, numbers_only=False):
         created_at = time.mktime(created_at)
         username = pull["head"]["user"]["login"]
         user_info = github_get_user_info(username)
-        author = '"%s" <%s>' % (user_info.get("name", "unknown"),
+        author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                 user_info.get("email", ""))
         formated_pulls.append((created_at, n, repo, branch, author, mergeable))
     formated_pulls.sort(key=lambda x: x[0])
@@ -318,8 +328,8 @@ def query2github(url, username="", password="", data=""):
     if data is not "":
         request.add_data(data)
     try:
-        http_response = urllib2.urlopen(request)
-        response_body = json.load(urllib2.urlopen(request))
+        http_response = urlopen(request)
+        response_body = json.load(http_response)
     except urllib2.HTTPError, e:
         # Auth exception
         if e.code == 401:
