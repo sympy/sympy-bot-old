@@ -308,7 +308,7 @@ def github_authenticate(config):
 def query2github(url, username="", password="", data=""):
     """
     Query github API,
-    if username and password presented, then query executed from user account
+    if username and password are presented, then the query is executed from the user account
     """
     request = urllib2.Request(url)
     # Add authentication headers to request, if username and password presented
