@@ -13,8 +13,6 @@ from getpass import getpass
 
 from jsonrpc import JSONRPCService
 
-import gh_values
-
 class CmdException(Exception):
     pass
 
@@ -108,18 +106,17 @@ def get_xpassed_info_from_log(log):
         return lines.splitlines()
     return []
 
-def github_get_pull_request_all():
+def github_get_pull_request_all(url):
     """
     Returns all github pull requests.
     """
-    url = gh_values.gh_pull_list_url
     return query2github(url)
 
-def github_get_pull_request(n):
+def github_get_pull_request(url, n):
     """
     Returns pull request 'n'.
     """
-    url = gh_values.gh_pull_template % n
+    url = url % n
     timer = 1
     while True:
         try:
@@ -132,8 +129,8 @@ def github_get_pull_request(n):
 
     return pull
 
-def github_get_user_info(username):
-    url = gh_values.gh_user_info_template % username
+def github_get_user_info(url, username):
+    url = url % username
     timer = 1
     while True:
         try:
@@ -146,14 +143,13 @@ def github_get_user_info(username):
 
     return user_info
 
-def github_check_authentication(username, password):
+def github_check_authentication(url, username, password):
     """
     Checks that username & password is valid.
     """
-    url = gh_values.gh_api_url
     query2github(url, username, password)
 
-def github_add_comment_to_pull_request(username, password, n, comment):
+def github_add_comment_to_pull_request(url, username, password, n, comment):
     """
     Adds a 'comment' to the pull request 'n'.
 
@@ -164,7 +160,7 @@ def github_add_comment_to_pull_request(username, password, n, comment):
             "body" : comment
         }
     )
-    url = gh_values.gh_issue_comment_template % n
+    url = url % n
     response = query2github(url, username, password, enc_comment)
     assert response["body"] == comment
 
@@ -213,14 +209,14 @@ def reviews_sympy_org_upload(data, url_base):
             timer *= 2
     return r["task_url"]
 
-def list_pull_requests(repo, numbers_only=False):
+def list_pull_requests(urls, numbers_only=False):
     """
     Returns the pull requests numbers.
 
     It returns a tuple of (nonmergeable, mergeable), where "nonmergeable"
     and "mergeable" are lists of the pull requests numbers.
     """
-    pulls = github_get_pull_request_all()
+    pulls = github_get_pull_request_all(urls.pull_list_url)
     formated_pulls = []
     print "Total pull count", len(pulls)
     sys.stdout.write("Processing pulls...")
@@ -228,7 +224,7 @@ def list_pull_requests(repo, numbers_only=False):
         n = pull["number"]
         sys.stdout.write(" %d" % n)
         sys.stdout.flush()
-        pull_info = github_get_pull_request(n)
+        pull_info = github_get_pull_request(urls.single_pull_template, n)
         mergeable = pull_info["mergeable"]
         repo = pull["head"]["repo"]["html_url"]
         branch = pull["head"]["ref"]
@@ -236,9 +232,9 @@ def list_pull_requests(repo, numbers_only=False):
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
         username = pull["head"]["user"]["login"]
-        user_info = github_get_user_info(username)
+        user_info = github_get_user_info(urls.user_info_template, username)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
-                                user_info.get("email", ""))
+                                  user_info.get("email", ""))
         formated_pulls.append((created_at, n, repo, branch, author, mergeable))
     formated_pulls.sort(key=lambda x: x[0])
     print "\nPatches that cannot be merged without conflicts:"
@@ -277,14 +273,14 @@ will be kept as a Python variable as long as sympy-bot is running and
 https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
-def github_authenticate(config):
+def github_authenticate(url, config):
     def get_password():
         while True:
             password = getpass("Password: ")
 
             try:
                 print "> Checking username and password ..."
-                github_check_authentication(username, password)
+                github_check_authentication(url, username, password)
             except AuthenticationFailed:
                 print ">     Authentication failed."
             else:
@@ -299,7 +295,7 @@ def github_authenticate(config):
 
             try:
                 print "> Checking username and password ..."
-                github_check_authentication(username, password)
+                github_check_authentication(url, username, password)
             except AuthenticationFailed:
                 print ">     Authentication failed."
                 password = get_password()

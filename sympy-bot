@@ -18,6 +18,7 @@ from utils import (cmd, github_get_pull_request,
         github_add_comment_to_pull_request, list_pull_requests, format_repo,
         get_interpreter_version_info, get_interpreter_exe, github_get_user_info)
 from testrunner import run_tests
+from url_templates import URLs
 
 default_testcommand = "setup.py test"
 default_interpreter = "python"
@@ -94,14 +95,16 @@ Commands:
 
     options.user = config.get("user")
     options.password = config.get("password")
+    gh_user, gh_repo = options.repository.split("/")
+    urls = URLs(user=gh_user, repo=gh_repo)
 
     if len(args) == 1:
         arg, = args
         if arg == "list":
-            list_pull_requests(options.repository)
+            list_pull_requests(urls)
             return
         elif arg == "list-numbers":
-            list_pull_requests(options.repository, numbers_only=True)
+            list_pull_requests(urls, numbers_only=True)
             return
         print "Unknown command"
         sys.exit(1)
@@ -114,13 +117,13 @@ Commands:
                     print "Reviewing all *mergeable* pull requests"
                     print
                     nonmergeable, mergeable = list_pull_requests( \
-                            options.repository, numbers_only=True)
+                            urls, numbers_only=True)
                     nums = mergeable
                 elif args[0] == "all":
                     print "Reviewing *all* pull requests"
                     print
                     nonmergeable, mergeable = list_pull_requests( \
-                            options.repository, numbers_only=True)
+                            urls, numbers_only=True)
                     nums = nonmergeable + mergeable
                 else:
                     # just a pull request #, convert it:
@@ -129,12 +132,12 @@ Commands:
                 # list of pull request numbers, convert it:
                 nums = [int(x) for x in args]
             if options.upload:
-                username, password = github_authenticate(options)
+                username, password = github_authenticate(urls.api_url, options)
             else:
                 username = password = None
             try:
                 for n in nums:
-                    review(n, options, username=username, password=password, \
+                    review(urls, n, options, username=username, password=password, \
                            proto=proto
                           )
             except KeyboardInterrupt:
@@ -257,7 +260,7 @@ def get_platform_version(interpreter):
     r += "*Cache:*        %s\n" % use_cache
     return r
 
-def review(n, config, **kwargs):
+def review(urls, n, config, **kwargs):
     # Make sure python3 is setup correctly
     # If set Python 3 interpreter with -i, be sure python3 is True
     username = kwargs.get("username", None)
@@ -271,14 +274,14 @@ def review(n, config, **kwargs):
 
     tmpdir = mkdtemp(prefix="sympy-bot-tmp")
     print "> Working directory: %s" % tmpdir
-    pull = github_get_pull_request(n)
+    pull = github_get_pull_request(urls.single_pull_template, n)
     assert pull["number"] == n
     print "> Reviewing pull request #%d" % n
     repo = pull["head"]['repo']["html_url"]
     repo = repo.replace(default_proto, proto) if proto != default_proto else repo
     branch = pull["head"]["ref"]
     user = pull["head"]["user"]
-    user_info = github_get_user_info(username)
+    user_info = github_get_user_info(urls.user_info_template, username)
     author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                               user_info.get("email", ""))
     print "> Pull request info:"
@@ -345,7 +348,9 @@ def review(n, config, **kwargs):
     print review
     if config.upload and config.comment:
         print "> Uploading the review to the GitHub pull request ..."
-        github_add_comment_to_pull_request(username, password, n, review)
+        github_add_comment_to_pull_request(urls.issue_comment_template, \
+                                           username, password, n, review
+                                          )
         print ">     Done."
         print format_repo("> Check the results: https://github.com/{repo}/pull/%d", config.repository) % n
     print "> Merged pull request available in: %s" % tmpdir

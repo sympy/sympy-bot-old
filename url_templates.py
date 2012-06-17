@@ -1,11 +1,17 @@
-# This file contains predefined values for communicating with GitHub
-# If you want to run bot on another repo, then replace "gh_user" and "gh_repo" with
-# yours values
-gh_api_url = "https://api.github.com"
-gh_user = "sympy"
-gh_repo = "sympy"
-gh_pull_list_url = gh_api_url + "/repos" + "/" + gh_user + "/" + gh_repo + "/pulls" 
-gh_pull_template = gh_pull_list_url + "/%d"
-gh_user_info_template = gh_api_url + "/users/%s"
-gh_issue_comment_template = gh_api_url + "/repos" + "/" + gh_user + "/" + gh_repo + \
-                            "/issues/%d" + "/comments"
+class URLs(object):
+    """
+    This class contains URLs and templates which used in requests to GitHub API
+    """
+
+    def __init__(self, user="sympy", repo="sympy", api_url="https://api.github.com"):
+        """ Generates all URLs and templates """
+
+        self.user = user
+        self.repo = repo
+        self.api_url = api_url
+
+        self.pull_list_url = api_url + "/repos" + "/" + user + "/" + repo + "/pulls" 
+        self.single_pull_template = self.pull_list_url + "/%d"
+        self.user_info_template = api_url + "/users/%s"
+        self.issue_comment_template = \
+            api_url + "/repos" + "/" + user + "/" + repo + "/issues/%d" + "/comments"
