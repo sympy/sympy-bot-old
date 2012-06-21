@@ -202,11 +202,19 @@ def reviews_sympy_org_upload(data, url_base):
             s = JSONRPCService(url_base + "/async")
             r = s.RPC.upload_task(data["num"], data["result"],
                     data["interpreter"], data["testcommand"], data["log"])
-            break
+            if "task_url" in r:
+                break
+            else:
+                # This happens for example when the server is over quota, see
+                # https://github.com/sympy/sympy-bot/issues/110
+                print "Server problem at %s, retrying in %d seconds..." % (url_base, timer)
         except urllib2.HTTPError:
+            # The server is down or we cannot connect to the internet
             print "Error while accessing %s, retrying in %d seconds..." % (url_base, timer)
-            time.sleep(timer)
-            timer *= 2
+
+        time.sleep(timer)
+        timer *= 2
+
     return r["task_url"]
 
 def list_pull_requests(urls, numbers_only=False):
