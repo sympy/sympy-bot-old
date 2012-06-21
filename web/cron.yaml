@@ -1,7 +1,7 @@
 cron:
 - description: update from GitHub (quick)
   url: /quickupdate
-  schedule: every 2 hours
+  schedule: every 12 hours
 - description: update from GitHub (full)
   url: /update
-  schedule: every 12 hours
+  schedule: every 2 days
