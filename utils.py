@@ -234,7 +234,10 @@ def list_pull_requests(urls, numbers_only=False):
         sys.stdout.flush()
         pull_info = github_get_pull_request(urls.single_pull_template, n)
         mergeable = pull_info["mergeable"]
-        repo = pull["head"]["repo"]["html_url"]
+        if pull["head"]["repo"]:
+            repo = pull["head"]["repo"]["html_url"]
+        else:
+            repo = None
         branch = pull["head"]["ref"]
         created_at = pull["created_at"]
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
