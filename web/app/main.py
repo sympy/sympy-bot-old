@@ -336,8 +336,6 @@ class UploadPull(RequestHandler):
                     upload_url = (last_row.url_path)
                 else:
                     upload_url = ("")
-        else:
-            message = ("<a href=\"%s\">Sign in</a>." % users.create_login_url("/upload_pull"))
 
         self.render("upload_url.html", {"user": user,
                                         "upload_url": upload_url,
