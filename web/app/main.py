@@ -17,7 +17,7 @@ from google.appengine.api import taskqueue
 
 from jsonrpc_client import JSONRPCService, JSONRPCError
 from jsonrpc_server import JSONRPCServer
-from models import PullRequest, Task, User
+from models import PullRequest, Task, User, UploadURL
 from github import (github_get_pull_request_all_v2,
         github_get_pull_request_all_v3, github_get_pull_request,
         github_get_user)
@@ -76,7 +76,7 @@ class MainPage(RequestHandler):
         p_mergeable.filter("state =", "open")
         p_mergeable.order("-created_at")
         p_nonmergeable = PullRequest.all()
-        p_nonmergeable.filter("mergeable =", False)
+        p_nonmergeable.filter("mergeable IN", [False, None])
         p_nonmergeable.filter("state =", "open")
         p_nonmergeable.order("-created_at")
         self.render("index.html", {
@@ -256,6 +256,99 @@ class Worker(webapp.RequestHandler):
         else:
             raise ValueError("wrong type")
 
+class UploadPull(RequestHandler):
+
+    def post(self, url_path):
+        last_row = UploadURL.all().order("-created_at").get()
+        if last_row:
+            if last_row.url_path == url_path:
+                try:
+                    payload = json.loads(self.request.get("payload"))
+                    logging.info(payload)
+                except json.JSONDecodeError:
+                    self.error(400)
+                    self.response.out.write("Incorrect request format\n")
+                num = payload["number"]
+                pull_request = payload["pull_request"]
+                # Get the old entity or create a new one:
+                p = PullRequest.all()
+                p.filter("num =", int(num))
+                p = p.get()
+                if p is None:
+                    p = PullRequest(num=num)
+                # Update all data that we can from GitHub:
+                p.url = pull_request["html_url"]
+                p.state = pull_request["state"]
+                p.title = pull_request["title"]
+                p.body = pull_request["body"]
+                p.mergeable = pull_request["mergeable"]
+                if pull_request["head"]["repo"]:
+                    p.repo = pull_request["head"]["repo"]["url"]
+                p.branch = pull_request["head"]["ref"]
+                p.author_name = pull_request["user"].get("name", "")
+                p.author_email = pull_request["user"].get("email", "")
+                created_at = pull_request["created_at"]
+                created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+                p.created_at = created_at
+                u = User.all()
+                u.filter("login =", pull_request["user"]["login"])
+                u = u.get()
+                if u is None:
+                    u = User(login=pull_request["user"]["login"])
+                    u.put()
+                p.author = u
+                p.put()
+            else:
+                self.error(404)
+                self.response.out.write("Requesting URL doesn't exist\n")
+        else:
+            self.error(500)
+            self.response.out.write("URL for posting data not defined yet\n")
+
+    def get(self, url_path):
+
+        def notify_admins(user, new_url):
+            from google.appengine.api.mail import send_mail_to_admins
+            mail = user.email()
+            subject = "SymPy bot notification"
+            body = "New upload URL " + new_url
+            send_mail_to_admins(sender=mail, subject=subject, body=body)
+
+        from google.appengine.api import users
+        user = users.get_current_user()
+        is_admin = users.is_current_user_admin()
+        rows = []
+        upload_url = ""
+        if user:
+            if is_admin:
+                if self.request.get("generate"):
+                    import sha
+                    rand_string = os.urandom(10)
+                    sha_hash = sha.new(rand_string)
+                    new_record = UploadURL(url_path=sha_hash.hexdigest(), user=user.nickname())
+                    new_record.put()
+                    new_url = self.request.host_url + "/upload_pull/" + \
+                              sha_hash.hexdigest()
+                    notify_admins(user, new_url)
+                rows = UploadURL.all()
+                last_row = rows.order("-created_at").get()
+                if last_row:
+                    upload_url = (last_row.url_path)
+                else:
+                    upload_url = ("")
+        else:
+            message = ("<a href=\"%s\">Sign in</a>." % users.create_login_url("/upload_pull"))
+
+        self.render("upload_url.html", {"user": user,
+                                        "upload_url": upload_url,
+                                        "is_admin": is_admin,
+                                        "rows": rows,
+                                        "login_url": users.create_login_url("/upload_pull"),
+                                        "logout_url": users.create_logout_url("/upload_pull"),
+                                       }
+                   )
+
+
 def main():
     urls =  [
         ('/', MainPage),
@@ -266,6 +359,7 @@ def main():
         ('/update/?', UpdatePage),
         ('/quickupdate/?', QuickUpdatePage),
         ('/worker/?', Worker),
+        ('/upload_pull/?(.*)/?', UploadPull),
     ]
     application = webapp.WSGIApplication(urls, debug=True)
     run_wsgi_app(application)

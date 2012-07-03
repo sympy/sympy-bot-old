@@ -95,3 +95,31 @@ of the commit you want.
 This is also useful for bisecting problems with SymPy Bot. Simply use
 git to bisect in your local SymPy repository and pass the SHA1's it
 picks to ``sympy-bot -n -m``.
+
+Web interface integration with github
+-------------------------------------
+
+This way is a bit complicated in set up than previous(poll github for new pulls),
+but that will update information about pulls in real time.
+
+SymPy Bot web-interface(which located in under web/) supports integration with
+github via mechanism called hooks http://developer.github.com/v3/repos/hooks/
+
+To use that feature you need to follow these steps:
+
+1. Go to ``http://example.com/upload_pull``, sign in as administrator and press
+   ``generate`` button. After that, all admins will recieve notification with
+   secret URL(you can see a log of all generations in table on that page)
+2. You need to tell github to use this URL, so here steps( replace ``username``
+   and ``repo`` with you values):
+        - Go to https://github.com/user/repo/admin/hooks
+        - Click on ``WebHook URLs`` and add secret URL there.
+        - Then, you need to modify your current hooks via github API:
+
+          ``curl -u username -d '{ "add_events": [ "pull_request" ] }'
+          https://api.github.com/repos/username/repo/hooks``
+
+        - If you don't have other hooks than just type:
+
+          ``curl -u username -d '{ "events": [ "pull_request" ] }'
+          https://api.github.com/repos/username/repo/hooks``

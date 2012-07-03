@@ -28,3 +28,8 @@ class Task(db.Model):
     interpreter = db.StringProperty()
     testcommand = db.StringProperty()
     uploaded_at = db.DateTimeProperty(auto_now_add=True)
+
+class UploadURL(db.Model):
+    url_path = db.StringProperty()
+    user = db.StringProperty()
+    created_at = db.DateTimeProperty(auto_now_add=True)

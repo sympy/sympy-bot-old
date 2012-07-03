@@ -38,3 +38,9 @@ indexes:
   properties:
   - name: pullrequest
   - name: uploaded_at
+
+- kind: UploadURL
+  properties:
+  - name: created_at
+    direction: desc
+  - name: url_path
