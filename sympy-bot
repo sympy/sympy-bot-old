@@ -51,7 +51,10 @@ Commands:
     parser.add_option("-t", "--testcommand", dest="testcommand",
             default=None, help="Command to run tests with. "
             "Use this to run only a subset of tests, rather than the full "
-            "test suite. The default is 'sympy-bot -t 'setup.py test'.")
+            "test suite. The default is `sympy-bot -t 'setup.py test'`. Note "
+            "that the command is run as the arguments of `python`. To run a "
+            "command without python, add '-V; ' to the beginning, like "
+            "`sympy-bot -t '-V; mycommand'`.")
     parser.add_option("-i", "--interpreter", dest="interpreter",
             default=None, help="Select interpreter to run test with. If "
             "you select Python 3.x, source code will be automatically "
