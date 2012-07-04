@@ -5,8 +5,6 @@ class User(db.Model):
     id = db.IntegerProperty()
     url = db.StringProperty()
     avatar_url = db.StringProperty()
-    name = db.StringProperty()
-    email = db.StringProperty()
 
 class PullRequest(db.Model):
     num = db.IntegerProperty(required=True)

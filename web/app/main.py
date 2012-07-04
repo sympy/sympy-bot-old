@@ -295,6 +295,9 @@ class UploadPull(RequestHandler):
                 u = u.get()
                 if u is None:
                     u = User(login=pull_request["user"]["login"])
+                    u.id = pull_request["user"]["id"]
+                    u.avatar_url = pull_request["user"]['avatar_url']
+                    u.url = pull_request["user"]["url"]
                     u.put()
                 p.author = u
                 p.put()
