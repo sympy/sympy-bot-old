@@ -3,7 +3,7 @@
 import json
 from urllib2 import urlopen
 import sys
-from optparse import OptionParser
+from argparse import ArgumentParser
 from tempfile import mkdtemp
 import subprocess
 import os
@@ -20,71 +20,67 @@ from utils import (cmd, github_get_pull_request,
 from testrunner import run_tests
 from url_templates import URLs
 
+# Options that can be overridden by config file
 default_testcommand = "setup.py test"
 default_interpreter = "python"
 default_interpreter3 = "python3"
-default_proto = 'https'
+default_protocol = "https"
+default_repository = "sympy/sympy"
+default_server = "http://reviews.sympy.org"
 
 def main():
-    parser = OptionParser(usage="""\
-[options] [commands]
+    parser = ArgumentParser(epilog="Run 'sympy-bot command -h' for additional help.")
+    subparsers = parser.add_subparsers(title="command", dest="command")
 
-Commands:
+    parser_review = subparsers.add_parser("review",
+        description="Reviews specified pull requests.")
+    parser_review.add_argument("nums", metavar="N", nargs="+",
+        help="Numbers of pull requests to review. You can also specify 'all' "
+        "or 'mergable' pull requests.")
+    parser_review.add_argument("-n", "--no-upload", dest="upload",
+        action="store_false", help="Do not upload the review to the server")
+    parser_review.add_argument("-3", "--python3", action="store_true",
+        help="Force use of Python 3.x, changes default interpreter to "
+        "'python3'")
+    parser_review.add_argument("--no-comment", dest="comment",
+        action="store_false", help="Upload review but do not submit summary "
+        "comment to pull request on GitHub")
+    # Config file default
+    parser_review.add_argument("-i", "--interpreter", type=str, help="Python "
+        "interpreter used to run tests, default is 'python'")
+    # Config file default
+    parser_review.add_argument("-t", "--testcommand", type=str, help="Command, "
+            "run as an argument of `python`,used to execute tests, allowing the "
+            "use of sympy-bot on a subset of the tests, default is 'setup.py "
+            "test', to run a command that is not an argument of `python`, add "
+            "'-V;' to the beginning of the option, for example '-V; mycommand'")
+    # Config file default
+    parser_review.add_argument("-r", "--reference", type=str, help="Path to "
+        "sympy repository, passed to 'git clone <sympy repo>', setting this "
+        "speeds up sympy-bot and decreases network traffic")
+    parser_review.add_argument("-m", "--master-commit", type=str,
+        default="origin/master", help="Commit to use as master for merging, "
+        "default is 'origin/master', which uses the current master, use "
+        "'HEAD' to not merge")
+    # Config file default
+    parser_review.add_argument("-p", "--protocol", type=str, choices=["https",
+        "git"], help="Protocol for communicating with GitHub")
+    # Config file default
+    parser_review.add_argument("-R", "--repository", type=str, help="GitHub "
+        "repository used, allowing  sympy-bot to be used with other projects, "
+        "default is 'sympy/sympy'")
+    # Config file default
+    parser_review.add_argument("-s", "--server", type=str,
+        help="Server to upload results, default is http://reviews.sympy.org")
 
-  review NNN            Reviews the pull request NNN; You can specify more than
-                        one number to review several pull requests in a series.
-                        You can also specify 'all' and 'mergeable' instead of
-                        NNN to review all or only all mergeable pull requests.
-  list                  Lists all open pull requests
-  list-numbers          Lists only the numbers of open pull requests;
-                        Suitable for piping into 'xargs -L 1 sympy-bot review'""")
-    parser.add_option("-n", "--no-upload",
-            action="store_false", dest="upload",
-            default=True, help="Do not upload the results into the pull request")
-    parser.add_option("-R", "--repository",
-            action="store", type="str", dest="repository",
-            default=None, help="Change the default 'sympy/sympy' repository to "
-            "something else. This allows to use sympy-bot with other projects.")
-    parser.add_option("-r", "--reference",
-            action="store", type="str", dest="reference",
-            default=None, help="Passes this to 'git clone <sympy repo>'")
-    parser.add_option("-t", "--testcommand", dest="testcommand",
-            default=None, help="Command to run tests with. "
-            "Use this to run only a subset of tests, rather than the full "
-            "test suite. The default is `sympy-bot -t 'setup.py test'`. Note "
-            "that the command is run as the arguments of `python`. To run a "
-            "command without python, add '-V; ' to the beginning, like "
-            "`sympy-bot -t '-V; mycommand'`.")
-    parser.add_option("-i", "--interpreter", dest="interpreter",
-            default=None, help="Select interpreter to run test with. If "
-            "you select Python 3.x, source code will be automatically "
-            "translated using 'bin/use2to3'. The default is 'python'.")
-    parser.add_option("-3", "--python3",
-            action="store_true", default=False, dest="python3",
-            help="Shorthand for 'sympy-bot -i python3")
-    parser.add_option("-s", "--server",
-            action="store", type="str", dest="server",
-            default="http://reviews.sympy.org",
-            help="Server to upload results. Default is "
-            "'http://reviews.sympy.org'")
-    parser.add_option("-m", "--master-commit",
-            action="store", type="str", dest="master_commit",
-            default="origin/master", help="Commit to use as master for merging."  "Use 'origin/master' to use the current master (the default) "
-            "and 'HEAD' to not merge.")
-    parser.add_option("--no-comment",
-            action="store_false", default=True, dest="comment",
-            help="Don't submit a summary comment to the pull request (but still upload the test report).")
-    parser.add_option("-p", "--protocol",
-            type='choice', choices=['https', 'git',],
-            action="store", default="https", dest="proto",
-            help="Choose git protocol if https failed")
+    parser_list = subparsers.add_parser('list')
+    parser_list.add_argument("-n", "--numbers", action="store_true",
+        help="List only the numbers of open pull requests, suitable for "
+        "piping into 'xargs -L 1 sympy-bot review'")
 
-
-    options, args = parser.parse_args()
+    options = parser.parse_args()
     config = load_config_file()
 
-    if options.repository is None:
-        options.repository = config.get("repository", "sympy/sympy")
     if options.reference is None:
         options.reference = config.get("reference")
     if options.testcommand is None:
@@ -94,67 +90,46 @@ Commands:
             options.interpreter = config.get("interpreter3", default_interpreter3)
         else:
             options.interpreter = config.get("interpreter", default_interpreter)
-    proto = options.proto if options.proto != default_proto else default_proto
+    if options.protocol is None:
+        options.protocol = config.get("protocol", default_protocol)
+    if options.repository is None:
+        options.repository = config.get("repository", default_repository)
+    if options.server is None:
+        options.server = config.get("server", default_server)
 
     options.user = config.get("user")
     options.password = config.get("password")
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
-    if len(args) == 1:
-        arg, = args
-        if arg == "list":
-            list_pull_requests(urls)
-            return
-        elif arg == "list-numbers":
-            list_pull_requests(urls, numbers_only=True)
-            return
-        print "Unknown command"
-        sys.exit(1)
-    elif len(args) >= 2:
-        arg1 = args[0]
-        if arg1 == "review":
-            args = args[1:]
-            if len(args) == 1:
-                if args[0] == "mergeable":
-                    print "Reviewing all *mergeable* pull requests"
-                    print
-                    nonmergeable, mergeable = list_pull_requests( \
-                            urls, numbers_only=True)
-                    nums = mergeable
-                elif args[0] == "all":
-                    print "Reviewing *all* pull requests"
-                    print
-                    nonmergeable, mergeable = list_pull_requests( \
-                            urls, numbers_only=True)
-                    nums = nonmergeable + mergeable
-                else:
-                    # just a pull request #, convert it:
-                    nums = [int(args[0])]
-            else:
-                # list of pull request numbers, convert it:
-                nums = [int(x) for x in args]
-            if options.upload:
-                username, password = github_authenticate(urls.api_url, options)
-            else:
-                username = password = None
-            try:
-                for n in nums:
-                    review(urls, n, options, username=username, password=password, \
-                           proto=proto
-                          )
-            except KeyboardInterrupt:
-                print "\n> Quitting on signal SIGINT."
-                sys.exit(1)
-            return
-        print "Unknown command"
-        sys.exit(1)
-    elif len(args) == 0:
-        pass
-    else:
-        print "Too many arguments"
-        sys.exit(1)
-    parser.print_help()
+    if options.command == "list":
+        list_pull_requests(urls, numbers_only=options.numbers)
+    elif options.command == "review":
+        if options.nums == "mergable":
+            print "Reviewing all *mergeable* pull requests"
+            print
+            nonmergeable, mergeable = list_pull_requests(urls, numbers_only=True)
+            nums = mergeable
+        elif options.nums == "all":
+            print "Reviewing *all* pull requests"
+            print
+            nonmergeable, mergeable = list_pull_requests(urls, numbers_only=True)
+            nums = nonmergeable + mergeable
+        else:
+            # list of pull request numbers, convert it:
+            nums = map(int, options.nums)
+        if options.upload:
+            username, password = github_authenticate(urls.api_url, options)
+        else:
+            username = password = None
+        try:
+            for n in nums:
+                review(urls, n, options, username=username, password=password, \
+                       proto=options.protocol
+                      )
+        except KeyboardInterrupt:
+            print "\n> Quitting on signal SIGINT."
+            sys.exit(1)
 
 def formulate_review(report_url, report_status, xpassed, master_hash,
         branch_hash, user, config):
@@ -268,7 +243,7 @@ def review(urls, n, config, **kwargs):
     # If set Python 3 interpreter with -i, be sure python3 is True
     username = kwargs.get("username", None)
     password = kwargs.get("password", None)
-    proto = kwargs.get("proto", None) or default_proto
+    proto = kwargs.get("proto", None) or default_protocol
     if get_interpreter_version_info(config.interpreter)[0] == '3':
         config.python3 = True
     # If set Python 2 interpreter with -i and set -3, raise error
@@ -281,7 +256,7 @@ def review(urls, n, config, **kwargs):
     assert pull["number"] == n
     print "> Reviewing pull request #%d" % n
     repo = pull["head"]['repo']["html_url"]
-    repo = repo.replace(default_proto, proto) if proto != default_proto else repo
+    repo = repo.replace(default_protocol, proto) if proto != default_protocol else repo
     branch = pull["head"]["ref"]
     user = pull["head"]["user"]
     user_info = github_get_user_info(urls.user_info_template, username)

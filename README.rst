@@ -29,6 +29,12 @@ to only review mergeable pull requests, do::
 
     ./sympy-bot review mergeable
 
+Requirements
+------------
+
+SymPy bot needs argparse to run. This is part of the standard library in
+Python 2.7 and 3.2, however it can be installed in earlier versions of Python.
+
 Tips
 ----
 
