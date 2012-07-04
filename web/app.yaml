@@ -1,4 +1,4 @@
-application: sympy3
+application: sympy2
 version: 4
 runtime: python
 api_version: 1

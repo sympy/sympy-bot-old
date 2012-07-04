@@ -1,7 +1,0 @@
-cron:
-- description: update from GitHub (quick)
-  url: /quickupdate
-  schedule: every 12 hours
-- description: update from GitHub (full)
-  url: /update
-  schedule: every day 00:00
