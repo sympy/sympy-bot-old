@@ -99,10 +99,10 @@ picks to ``sympy-bot -n -m``.
 Web interface integration with github
 -------------------------------------
 
-This way is a bit complicated in set up than previous(poll github for new pulls),
+This way is a bit complicated in set up than previous (poll github for new pulls),
 but that will update information about pulls in real time.
 
-SymPy Bot web-interface(which located in under web/) supports integration with
+SymPy Bot web-interface (which located in under web/) supports integration with
 github via mechanism called hooks http://developer.github.com/v3/repos/hooks/
 
 To use that feature you need to follow these steps:
@@ -110,16 +110,28 @@ To use that feature you need to follow these steps:
 1. Go to ``http://example.com/upload_pull``, sign in as administrator and press
    ``generate`` button. After that, all admins will recieve notification with
    secret URL(you can see a log of all generations in table on that page)
-2. You need to tell github to use this URL, so here steps( replace ``username``
+2. You need to tell github to use this URL, so here steps (replace ``username``
    and ``repo`` with you values):
         - Go to https://github.com/user/repo/admin/hooks
         - Click on ``WebHook URLs`` and add secret URL there.
-        - Then, you need to modify your current hooks via github API:
+        - Find the hook that you want to modify by::
 
-          ``curl -u username -d '{ "add_events": [ "pull_request" ] }'
-          https://api.github.com/repos/username/repo/hooks``
+            curl -u username https://api.github.com/repos/username/repo/hooks
 
-        - If you don't have other hooks than just type:
+          the ``id`` field gives the hook ID, copy and paste the path in the
+          "url" field into the command::
 
-          ``curl -u username -d '{ "events": [ "pull_request" ] }'
-          https://api.github.com/repos/username/repo/hooks``
+            curl -u username -d '{ "events": [ "pull_request" ] }'
+            https://api.github.com/repos/username/repo/hooks/ID
+
+          You will see that the "events" part::
+
+            "events": [
+                "push"
+            ],
+
+          changed to::
+
+            "events": [
+                "pull_request"
+            ],

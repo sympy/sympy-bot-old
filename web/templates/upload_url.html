@@ -29,9 +29,9 @@ $(document).ready(function() {
         </p>
         <b>NOTE:</b>
         <p>
-        If you will press button below, then review site will generates new URL
-        for uploading pull request information and will send email with new URL
-        to all admins
+        If you will press button below, then review site will generate new URL
+        for uploading pull request information and will send an email with new URL
+        to all admins.
         </p>
         <input type="hidden" name="generate" value="True">
         <input type="submit" value="Generate">
@@ -57,7 +57,7 @@ $(document).ready(function() {
     {% else %}
         Your account <b>{{ user.nickname }}</b> has no rights to access this page
         <br />
-        May be <a href="{{ logout_url }}">logout</a> and try again?
+        Maybe <a href="{{ logout_url }}">logout</a> and try again?
     {% endif %}
 {% else %}
     <a href="{{ login_url }}">Sign in</a>.
