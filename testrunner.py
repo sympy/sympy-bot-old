@@ -67,12 +67,14 @@ def run_tests(master_repo_url, pull_request_repo_url, pull_request_branch,
                 capture=True)
         result["result"] = "conflicts"
         result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
+        cmd("cd %s && git checkout master && git branch -D test" % master_repo_path)
         return result
     if python3:
         cmd("cd %s && python bin/use2to3" % master_repo_path)
         master_repo_path = master_repo_path + "/py3k-sympy"
     log, r = cmd2("cd %s && %s %s" % (master_repo_path,
         interpreter, test_command))
+    cmd("cd %s && git checkout master && git branch -D test" % master_repo_path)
     result["log"] = log
     result["return_code"] = r
 
