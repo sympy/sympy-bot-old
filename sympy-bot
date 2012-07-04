@@ -17,6 +17,8 @@ from url_templates import URLs
 default_testcommand = "setup.py test"
 default_interpreter = "python"
 default_interpreter3 = "python3"
+default_build_docs_command = "make html-errors"
+default_build_docs_dir = "doc"
 default_protocol = "https"
 default_repository = "sympy/sympy"
 default_server = "http://reviews.sympy.org"
@@ -24,6 +26,10 @@ default_server = "http://reviews.sympy.org"
 def main():
     parser = ArgumentParser(epilog="Run 'sympy-bot command -h' for additional help.")
     subparsers = parser.add_subparsers(title="command", dest="command")
+    # Config file default
+    parser.add_argument("-R", "--repository", type=str, help="GitHub "
+        "repository used, allowing  sympy-bot to be used with other projects, "
+        "default is 'sympy/sympy'")
 
     parser_review = subparsers.add_parser("review",
         description="Reviews specified pull requests.")
@@ -35,6 +41,9 @@ def main():
     parser_review.add_argument("-3", "--python3", action="store_true",
         help="Force use of Python 3.x, changes default interpreter to "
         "'python3'")
+    parser_review.add_argument("-D", "--build-docs", action="store_true",
+        help="Test the building of the Sphinx HTML documentation (default is "
+        "no)")
     parser_review.add_argument("--no-comment", dest="comment",
         action="store_false", help="Upload review but do not submit summary "
         "comment to pull request on GitHub")
@@ -44,10 +53,16 @@ def main():
         "'python'")
     # Config file default
     parser_review.add_argument("-t", "--testcommand", type=str, help="Command, "
-            "run as an argument of `python`,used to execute tests, allowing the "
-            "use of sympy-bot on a subset of the tests, default is 'setup.py "
-            "test', to run a command that is not an argument of `python`, add "
-            "'-V;' to the beginning of the option, for example '-V; mycommand'")
+        "run as an argument of `python`,used to execute tests, allowing the "
+        "use of sympy-bot on a subset of the tests, default is 'setup.py "
+        "test', to run a command that is not an argument of `python`, add "
+        "'-V;' to the beginning of the option, for example '-V; mycommand'")
+    # Config file default
+    parser_review.add_argument("--build-docs-command", type=str, help="Command "
+        "run to build the Sphinx docs (default is 'make html-errors')")
+    # Config file default
+    parser_review.add_argument("--build-docs-dir", type=str, help="Directory "
+        "in which to build the Sphinx docs (default is 'doc')")
     # Config file default
     parser_review.add_argument("-r", "--reference", type=str, help="Path to "
         "sympy repository, passed to 'git clone <sympy repo>', setting this "
@@ -60,10 +75,6 @@ def main():
     parser_review.add_argument("-p", "--protocol", type=str, choices=["https",
         "git"], help="Protocol for communicating with GitHub")
     # Config file default
-    parser_review.add_argument("-R", "--repository", type=str, help="GitHub "
-        "repository used, allowing  sympy-bot to be used with other projects, "
-        "default is 'sympy/sympy'")
-    # Config file default
     parser_review.add_argument("-s", "--server", type=str,
         help="Server to upload results, default is http://reviews.sympy.org")
 
@@ -75,21 +86,8 @@ def main():
     options = parser.parse_args()
     config = load_config_file()
 
-    if options.reference is None:
-        options.reference = config.get("reference")
-    if options.testcommand is None:
-        options.testcommand = config.get("testcommand", default_testcommand)
-    if options.interpreter is None:
-        if options.python3:
-            options.interpreter = [config.get("interpreter3", default_interpreter3)]
-        else:
-            options.interpreter = [config.get("interpreter", default_interpreter)]
-    if options.protocol is None:
-        options.protocol = config.get("protocol", default_protocol)
     if options.repository is None:
         options.repository = config.get("repository", default_repository)
-    if options.server is None:
-        options.server = config.get("server", default_server)
 
     options.user = config.get("user")
     options.password = config.get("password")
@@ -99,13 +97,31 @@ def main():
     if options.command == "list":
         list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
+        if options.reference is None:
+            options.reference = config.get("reference")
+        if options.testcommand is None:
+            options.testcommand = config.get("testcommand", default_testcommand)
+        if options.interpreter is None:
+            if options.python3:
+                options.interpreter = [config.get("interpreter3", default_interpreter3)]
+            else:
+                options.interpreter = [config.get("interpreter", default_interpreter)]
+        if options.build_docs_command is None:
+            options.build_docs_command = config.get("build_docs_command", default_build_docs_command)
+        if options.build_docs_dir is None:
+            options.build_docs_dir = config.get("build_docs_dir", default_build_docs_dir)
+        if options.protocol is None:
+            options.protocol = config.get("protocol", default_protocol)
+        if options.server is None:
+            options.server = config.get("server", default_server)
+
         if options.n == "mergable":
-            print "Reviewing all *mergeable* pull requests"
+            print "> Reviewing all *mergeable* pull requests"
             print
             nonmergeable, mergeable = list_pull_requests(urls, numbers_only=True)
             options.n = mergeable
         elif options.n == "all":
-            print "Reviewing *all* pull requests"
+            print "> Reviewing *all* pull requests"
             print
             nonmergeable, mergeable = list_pull_requests(urls, numbers_only=True)
             options.n = nonmergeable + mergeable
@@ -166,55 +182,65 @@ def dispatch_reviews(config, urls, **kwargs):
     else:
         cmd("cd %s && git clone git://github.com/%s.git" % (tmpdir, config.repository))
 
-    # Generate all reviews
-    reviews = {}
-    for n in nums:
-        # Write pull request info
-        pull = github_get_pull_request(urls.single_pull_template, n)
-        assert pull["number"] == n
-        print "> Reviewing pull request #%d" % n
-        repo = pull["head"]["repo"]["html_url"]
-        repo = repo.replace("https", config.protocol)
-        branch = pull["head"]["ref"]
-        user = pull["head"]["user"]
-        user_info = github_get_user_info(urls.user_info_template, username)
-		# TODO: Author broken
-        author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
-                                  user_info.get("email", ""))
-        print "> Pull request info:"
-        print unicode(">     Author: %s" % author).encode('utf8')
-        print ">     Repository: %s" % repo
-        print ">     Branch: %s" % branch
+    # Open log file
+    log_file = os.path.join("%s" % tmpdir, "out", "log")
+    logdir = os.path.join(tmpdir, "out")
+    os.mkdir(logdir)
+    with open(log_file, "w") as log:
+        # Generate all reviews
+        reviews = {}
+        for n in nums:
+            # Write pull request info
+            pull = github_get_pull_request(urls.single_pull_template, n)
+            assert pull["number"] == n
+            print "> Reviewing pull request #%d" % n
+            repo_url = pull["head"]["repo"]["html_url"]
+            repo_url = repo_url.replace(default_protocol, config.protocol)
+            branch = pull["head"]["ref"]
+            user = pull["head"]["user"]
+            user_info = github_get_user_info(urls.user_info_template, username)
+            # TODO: Author broken
+            author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
+                                      user_info.get("email", ""))
+            print "> Pull request info:"
+            print unicode(">     Author: %s" % author).encode('utf8')
+            print ">     Repository: %s" % repo_url
+            print ">     Branch: %s" % branch
 
-        # Iterate over interpreters
-        pull_review = {}
-        for i in interpreters:
-            # Run tests
-            print "> Testing interpreter %s" % i
-            result = run_tests("https://github.com/%s.git" % config.repository,
-                    repo, branch, tmpdir + "/sympy", config.testcommand,
-                    i, python3[i], config.master_commit)
-            if result["result"] == "error":
-                print "There was an error. Report not uploaded."
-                sys.exit(1)
-            print "> Done."
+            pull_review = {}
+            # Iterate over interpreters
+            for i in interpreters:
+                # Run tests
+                print "> Testing interpreter %s" % i
+                command = "%s %s" % (i, config.testcommand)
+                repo_path = os.path.join(tmpdir, "sympy")
+                result = run_tests(repo_url, branch, repo_path, command,
+                        python3[i], config.master_commit)
+                if result["result"] == "error":
+                    print "There was an error. Report not uploaded."
+                    sys.exit(1)
+                print "> Done."
+                print
 
-            # Open and write log file
-            log_file = os.path.join("%s" % tmpdir, "out", "log")
-            log = result["log"]
-            if os.name=='nt':
-                mkdir_command = "mkdir"
-            else:
-                mkdir_command = "mkdir -p"
-            cmd("%s %s" % (mkdir_command, os.path.join(tmpdir, "out")))
-            open(log_file, "w").write(log)
-            print "> View log at: %s" % log_file
-            print
+                pull_review[i] = result
+                log.write(result["log"])
+            if config.build_docs:
+                print "> Building Sphinx docs"
+                repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
+                result = run_tests(repo_url, branch, repo_path,
+                        config.build_docs_command, False, config.master_commit)
+                if result["result"] == "error":
+                    print "There was an error. Report not uploaded."
+                    sys.exit(1)
+                print "> Done."
+                print
 
-            pull_review[i] = result
+                pull_review["build docs"] = result
+                log.write(result["log"])
         pull_review["master_hash"] = result["master_hash"]
         pull_review["branch_hash"] = result["branch_hash"]
         reviews[n] = pull_review
+        print "> View log at: %s" % log_file
 
     # Summarize and upload results
     for n, pull_review in reviews.iteritems():
@@ -234,12 +260,12 @@ def dispatch_reviews(config, urls, **kwargs):
                 "testcommand": config.testcommand,
                 "master_hash": master_hash,
                 "branch_hash": branch_hash,
-            } for i in config.interpreter}
-            report_url = {i: reviews_sympy_org_upload(data[i], url_base) for i in config.interpreter}
+            } for i in pull_review.iterkeys()}
+            report_url = {i: reviews_sympy_org_upload(data[i], url_base) for i in pull_review.iterkeys()}
             for i, url in report_url.iteritems():
-                print "> Uploaded report for interpreter '%s' at: %s" % (i, url)
+                print "> Uploaded report for '%s' at: %s" % (i, url)
         else:
-            report_url = {i: "(report was not uploaded)" for i in config.interpreter}
+            report_url = {i: "(report was not uploaded)" for i in pull_review.iterkeys()}
         review = formulate_review(report_url, report_status, xpassed,
                 master_hash, branch_hash, user, config)
         print "> Review:"
@@ -250,7 +276,7 @@ def dispatch_reviews(config, urls, **kwargs):
                                                username, password, n, review
                                               )
             print ">     Done."
-            print "> Check the results: https://github.com/{repo}/pull/%d" % (config.repository, n)
+            print "> Check the results: https://github.com/%s/pull/%d" % (config.repository, n)
 
 def formulate_review(report_url, report_status, xpassed, master_hash, branch_hash, user, config):
     user = user.get("login", None)
@@ -292,7 +318,7 @@ See the report for a list of the merge conflicts.""" % atuser
     (summary, details,)
 
     for n, i in enumerate(config.interpreter, start=1):
-        details  = get_platform_version(i)
+        details = get_platform_version(i)
         status = report_status[i]
         if status == "conflicts":
             summary = """:exclamation: There were merge conflicts; could not test the branch."""
@@ -305,11 +331,32 @@ See the report for a list of the merge conflicts.""" % atuser
         else:
             raise ValueError("Unknown report_status")
 
-        report += """**Interpreter #%d:** %s
+        report += """**Interpreter %d:** %s
 
 Test results html report: %s
 
 %s\n""" % (n, summary, report_url[i], details)
+
+    if config.build_docs:
+        details = get_sphinx_version()
+        status = report_status["build docs"]
+        if status == "conflicts":
+            summary = """:exclamation: There were merge conflicts; could not test the branch."""
+        elif status == "fetch":
+            summary = """:x: Could not fetch the branch."""
+        elif status == "Failed":
+            summary = """:red_circle: There were test failures."""
+        elif status == "Passed":
+            summary = """:eight_spoked_asterisk: All tests have passed."""
+        else:
+            raise ValueError("Unknown report_status")
+
+        report += """**Build HTML Docs:** %s
+
+Test results html report: %s
+
+*Docs build command:* %s
+%s\n""" % (summary, report_url["build docs"], config.build_docs_command, details)
 
     report += """Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
     return report
@@ -331,6 +378,7 @@ def get_executable(interpreter):
 def get_platform_version(interpreter):
     from os import getenv
     import platform
+    # Python 2.5 doesn't have sys.maxsize
     code = 'import sys; print(getattr(sys, "maxint", None))'
     call = "%s -c '%s'" % (interpreter, code)
     size = cmd(call, capture=True)
@@ -350,6 +398,12 @@ def get_platform_version(interpreter):
     r  = "*Interpreter:*  %s (%s)\n" % (executable, python_version)
     r += "*Architecture:* %s (%s)\n" % (platfotm_system, architecture)
     r += "*Cache:*        %s\n" % use_cache
+    return r
+
+def get_sphinx_version():
+    import sphinx
+    version = sphinx.__version__
+    r = "*Sphinx version:* %s\n" % version
     return r
 
 if __name__ == "__main__":

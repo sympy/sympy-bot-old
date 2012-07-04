@@ -58,20 +58,12 @@ time when you use SymPy Bot by creating a configuration file for SymPy
 Bot at ``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
 
     user = "your user name"
-    token = "your GitHub API token"
     reference = "path to a local clone of SymPy's repository"
+    interpreter = "interpreter to run tests (default is 'python')"
+    interpreter3 = "interpreter to run Python 3 tests (default is 'python3')"
+    testcommand = "command to run tests (default is 'setup.py test')"
     repository = "remote SymPy's repository (default is sympy/sympy)"
-    interpreter = "interpreter to run tests with (default is 'python')"
-    testcommand = "command to run tests with (default is 'setup.py test')"
-
-Note that with configuration file you can use only token-based GitHub
-authentication mechanism (this is for your safety, but anyway make sure
-that the configuration file has proper permissions assigned, e.g. 600).
-You may leave any value that you don't want to include empty, and the
-default will be used.  If you supply a username and not an API token,
-then sympy-bot will ask you for your GitHub password on each invocation.
-
-You can get your GitHub API token by going to https://github.com/account/admin.
+    server = "server to upload reviews (default is http://reviews.sympy.org)"
 
 Foreign repositories
 --------------------
@@ -80,7 +72,7 @@ SymPy Bot can be also used with other remote repository than sympy/sympy.
 You can change the remote with ``-R`` flag to sympy-bot or by setting
 ``repository`` in configuration file. The new remote doesn't have to be
 SymPy's repository, but any repository on GitHub. Note that in this case
-you man need to setup customized ``testcommand``.
+you may need to setup customized ``testcommand``.
 
 Custom Master Commit
 --------------------
