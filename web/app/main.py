@@ -4,6 +4,7 @@ import logging
 import sys
 import traceback
 from random import random
+import urllib2
 
 from google.appengine.dist import use_library
 use_library("django", "1.2")
@@ -28,6 +29,9 @@ if dev_server:
     url_base = "http://localhost:8080"
 else:
     url_base = "http://reviews.sympy.org"
+
+polled_user = ""
+polled_repo = ""
 
 class RequestHandler(webapp.RequestHandler):
 
@@ -333,6 +337,8 @@ class UploadPull(RequestHandler):
                     new_url = self.request.host_url + "/upload_pull/" + \
                               sha_hash.hexdigest()
                     notify_admins(user, new_url)
+                if self.request.get("populate"):
+                    taskqueue.add(url="/worker-ng", queue_name="github")
                 rows = UploadURL.all()
                 last_row = rows.order("-created_at").get()
                 if last_row:
@@ -350,6 +356,70 @@ class UploadPull(RequestHandler):
                    )
 
 
+class WorkerNG(webapp.RequestHandler):
+    """
+    This class using for populating pull requests database and users
+    (calls when admin press "Populate" button)
+    """
+    def post(self):
+        try:
+            user = polled_user or "sympy"
+            repo = polled_repo or "sympy"
+            polled_url = "https://api.github.com/repos/" + user + "/" + repo + \
+                         "/pulls"
+            http_response = urllib2.urlopen(polled_url)
+            payload = json.load(http_response)
+            for pos in xrange(len(payload)):
+                polled_url = "https://api.github.com/repos/" + user + "/" + \
+                             repo + "/pulls/" + str(payload[pos]["number"])
+                http_response = urllib2.urlopen(polled_url)
+                pull_info = json.load(http_response)
+                payload[pos]["mergeable"] = pull_info["mergeable"]
+        except urllib2.HTTPError, e:
+            logging.error("Unapected error happen when polling github, %s" % e)
+            self.error(500)
+            self.response.out.write("Server error\n")
+        except json.JSONDecodeError, e:
+            logging.error("JSON parsing error, %s" % e)
+            self.error(500)
+            self.response.out.write("Server error\n")
+
+        # Process each pull request from payload
+        for pull in payload:
+            p = PullRequest.all()
+            num = pull["number"]
+            p.filter("num =", num)
+            p = p.get()
+            if p is None:
+                p = PullRequest(num=num)
+            p.url = pull["html_url"]
+            p.state = pull["state"]
+            p.title = pull["title"]
+            p.body = pull["body"]
+            p.mergeable = pull["mergeable"]
+            if pull["head"]["repo"]:
+                p.repo = pull["head"]["repo"]["url"]
+            p.branch = pull["head"]["ref"]
+            created_at = pull["created_at"]
+            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+            p.created_at = created_at
+
+            # Collect public information about user
+            u = User.all()
+            login = pull["user"]["login"]
+            u.filter("login =", login)
+            u = u.get()
+            if u is None:
+                u = User(login=login)
+            u.id = pull["user"]["id"]
+            u.avatar_url = pull["user"]["avatar_url"]
+            u.url = pull["user"]["url"]
+            u.put()
+
+            p.author = u
+            p.put()
+
+
 def main():
     urls =  [
         ('/', MainPage),
@@ -361,6 +431,7 @@ def main():
         ('/quickupdate/?', QuickUpdatePage),
         ('/worker/?', Worker),
         ('/upload_pull/?(.*)/?', UploadPull),
+        ('/worker-ng/?', WorkerNG),
     ]
     application = webapp.WSGIApplication(urls, debug=True)
     run_wsgi_app(application)
