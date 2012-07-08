@@ -324,11 +324,14 @@ See the report for a list of the merge conflicts.""" % atuser
     details += """*master hash*: %s\n""" % master_hash
     details += """*branch hash*: %s\n""" % branch_hash
 
-    report = """\
+    if len(config.interpreter) == 0:
+        report = """\
+**SymPy Bot Summary:** %s\n""" % summary
+    else:
+        report = """\
 **SymPy Bot Summary:** %s
 
-%s\n""" % \
-    (summary, details,)
+%s""" %  (summary, details)
 
     for n, i in enumerate(config.interpreter, start=1):
         details = get_platform_version(i)
@@ -345,11 +348,10 @@ See the report for a list of the merge conflicts.""" % atuser
             raise ValueError("Unknown report_status")
 
         if len(config.interpreter) > 1:
-            report += """**Interpreter %d:** %s\n""" % (n, summary)
+            report += """\n**Interpreter %d:** %s\n\n""" % (n, summary)
+        report += """%s
+Test results html report: %s\n""" % (details, report_url[i])
 
-        report += """Test results html report: %s
-
-%s\n""" % (report_url[i], details)
 
     if config.build_docs:
         details = get_sphinx_version()
@@ -365,14 +367,14 @@ See the report for a list of the merge conflicts.""" % atuser
         else:
             raise ValueError("Unknown report_status")
 
-        report += """**Build HTML Docs:** %s
-
-Test results html report: %s
+        report += """\n**Build HTML Docs:** %s
 
 *Docs build command:* %s
-%s\n""" % (summary, report_url["build docs"], config.build_docs_command, details)
+%s
 
-    report += """Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
+Test results html report: %s\n""" % (summary, config.build_docs_command, details, report_url["build docs"], )
+
+    report += """\nAutomatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
     return report
 
 def get_executable(interpreter):
@@ -417,7 +419,7 @@ def get_platform_version(interpreter):
 def get_sphinx_version():
     import sphinx
     version = sphinx.__version__
-    r = "*Sphinx version:* %s\n" % version
+    r = "*Sphinx version:* %s" % version
     return r
 
 if __name__ == "__main__":
