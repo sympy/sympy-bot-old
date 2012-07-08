@@ -143,13 +143,13 @@ def github_get_user_info(url, username):
 
     return user_info
 
-def github_check_authentication(url, username, password):
+def github_check_authentication(url, username, password, token):
     """
     Checks that username & password is valid.
     """
-    query2github(url, username, password)
+    query2github(url, username, password, token)
 
-def github_add_comment_to_pull_request(url, username, password, n, comment):
+def github_add_comment_to_pull_request(url, username, password, token, n, comment):
     """
     Adds a 'comment' to the pull request 'n'.
 
@@ -161,7 +161,7 @@ def github_add_comment_to_pull_request(url, username, password, n, comment):
         }
     )
     url = url % n
-    response = query2github(url, username, password, enc_comment)
+    response = query2github(url, username, password, token, enc_comment)
     assert response["body"] == comment
 
 def pastehtml_upload(source, input_type="html"):
@@ -285,53 +285,56 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
 def github_authenticate(url, config):
-    def get_password():
+    def get_password(password=None):
         while True:
+            if password:
+                try:
+                    print "> Checking username and password ..."
+                    github_check_authentication(url, username, password, None)
+                except AuthenticationFailed:
+                    print ">     Authentication failed"
+                else:
+                    print ">     OK"
+                    return password
             password = getpass("Password: ")
-
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(url, username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-            else:
-                print ">     OK."
-                return password
 
     if config.user:
         username = config.user
-
-        if config.password:
-            password = config.password
-
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(url, username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-                password = get_password()
-            else:
-                print ">     OK."
-        else:
-            password = get_password()
+        "> Using username %s" % username
     else:
         print _login_message
-
         username = raw_input("Username: ")
+
+    if config.token:
+        print "> Authenticating using token"
+        try:
+            github_check_authentication(url, username, None, config.token)
+        except AuthenticationFailed:
+            print ">     Authentication failed"
+        else:
+            print ">     OK"
+            return username, None, config.token
+
+    if password:
+        password = get_password(password)
+    else:
         password = get_password()
 
-    return username, password
+    return username, password, None
 
-def query2github(url, username="", password="", data=""):
+def query2github(url, username=None, password=None, token=None, data=""):
     """
     Query github API,
     if username and password are presented, then the query is executed from the user account
     """
     request = urllib2.Request(url)
     # Add authentication headers to request, if username and password presented
-    if username is not "" and password is not "":
-        base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
-        request.add_header("Authorization", "Basic %s" % base64string)
+    if username:
+        if token:
+            request.add_header("Authorization", "bearer %s" % token)
+        elif password:
+            base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
+            request.add_header("Authorization", "Basic %s" % base64string)
     if data is not "":
         request.add_data(data)
     try:

@@ -98,6 +98,7 @@ Commands:
 
     options.user = config.get("user")
     options.password = config.get("password")
+    options.token = config.get("token")
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
@@ -135,13 +136,14 @@ Commands:
                 # list of pull request numbers, convert it:
                 nums = [int(x) for x in args]
             if options.upload:
-                username, password = github_authenticate(urls.api_url, options)
+                username, password, token = github_authenticate(urls.api_url, options)
             else:
-                username = password = None
+                username = password = token = None
             try:
                 for n in nums:
-                    review(urls, n, options, username=username, password=password, \
-                           proto=proto
+                    review(urls, n, options, username=username, \
+                            password=password, token=token, \
+                            proto=proto
                           )
             except KeyboardInterrupt:
                 print "\n> Quitting on signal SIGINT."
@@ -268,6 +270,7 @@ def review(urls, n, config, **kwargs):
     # If set Python 3 interpreter with -i, be sure python3 is True
     username = kwargs.get("username", None)
     password = kwargs.get("password", None)
+    token = kwargs.get("token", None)
     proto = kwargs.get("proto", None) or default_proto
     if get_interpreter_version_info(config.interpreter)[0] == '3':
         config.python3 = True
@@ -352,7 +355,7 @@ def review(urls, n, config, **kwargs):
     if config.upload and config.comment:
         print "> Uploading the review to the GitHub pull request ..."
         github_add_comment_to_pull_request(urls.issue_comment_template, \
-                                           username, password, n, review
+                                           username, password, token, n, review
                                           )
         print ">     Done."
         print format_repo("> Check the results: https://github.com/{repo}/pull/%d", config.repository) % n
