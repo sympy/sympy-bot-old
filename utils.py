@@ -284,40 +284,30 @@ will be kept as a Python variable as long as sympy-bot is running and
 https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
-def github_authenticate(url, config):
-    def get_password():
+def github_authenticate(url, user, password):
+    def get_password(password=None):
         while True:
+            if password:
+                try:
+                    print "> Checking username and password ..."
+                    github_check_authentication(url, username, password)
+                except AuthenticationFailed:
+                    print ">     Authentication failed."
+                else:
+                    print ">     OK."
+                    return password
             password = getpass("Password: ")
 
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(url, username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-            else:
-                print ">     OK."
-                return password
-
-    if config.user:
-        username = config.user
-
-        if config.password:
-            password = config.password
-
-            try:
-                print "> Checking username and password ..."
-                github_check_authentication(url, username, password)
-            except AuthenticationFailed:
-                print ">     Authentication failed."
-                password = get_password()
-            else:
-                print ">     OK."
-        else:
-            password = get_password()
+    if user:
+        username = user
+        print "> Authenticating as %s" % username
     else:
         print _login_message
-
         username = raw_input("Username: ")
+
+    if password:
+        password = get_password(password)
+    else:
         password = get_password()
 
     return username, password

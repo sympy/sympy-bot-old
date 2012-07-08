@@ -52,18 +52,26 @@ connections.
 Configuration
 -------------
 
-You can avoid providing your username and password, give a reference to
-a local clone of SymPy's repository, or use a custom test command every
-time when you use SymPy Bot by creating a configuration file for SymPy
-Bot at ``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
+You can avoid providing your username and password, give a reference to a local
+clone of SymPy's repository, or use a custom test command every time when you
+use SymPy Bot by creating a configuration file for SymPy Bot at
+``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
 
-    user = "your user name"
-    reference = "path to a local clone of SymPy's repository"
-    interpreter = "interpreter to run tests (default is 'python')"
-    interpreter3 = "interpreter to run Python 3 tests (default is 'python3')"
-    testcommand = "command to run tests (default is 'setup.py test')"
-    repository = "remote SymPy's repository (default is sympy/sympy)"
-    server = "server to upload reviews (default is http://reviews.sympy.org)"
+    user = username
+    password = password
+
+To avoid having to clone the SymPy repository, you can add::
+
+    reference = /path/to/sympy
+
+You can also override any of the other defaults by setting the configuration
+file. These options include::
+
+    interpreter = Python interpreter (comma separated)
+    interpreter3 = Python 3 interpreter (comma separated)
+    testcommand = command to run tests
+    repository = remote SymPy's repository
+    server = server to upload reviews
 
 Foreign repositories
 --------------------

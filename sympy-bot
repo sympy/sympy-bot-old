@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tempfile import mkdtemp
 import os
 from os.path import expandvars
@@ -13,26 +13,37 @@ from utils import (cmd, github_get_pull_request,
 from testrunner import run_tests
 from url_templates import URLs
 
-# Options that can be overridden by config file
 default_testcommand = "setup.py test"
-default_interpreter = "python"
-default_interpreter3 = "python3"
-default_build_docs_command = "make html-errors"
-default_build_docs_dir = "doc"
+default_interpreter = ["python"]
+default_interpreter3 = ["python3"]
 default_protocol = "https"
-default_repository = "sympy/sympy"
-default_server = "http://reviews.sympy.org"
 
 def main():
-    parser = ArgumentParser(epilog="Run 'sympy-bot command -h' for additional help.")
+    global default_interpreter
+    global default_interpreter3
+
+    # Subclass argparser so help message is displayed when no args passed
+    class BotArgumentParser(ArgumentParser):
+        def error(self, message):
+            if message == "too few arguments":
+                self.print_help(sys.stderr)
+            else:
+                self.print_usage(sys.stderr)
+            self.exit(2, '%s: error: %s\n' % (self.prog, message))
+
+    parser = BotArgumentParser(
+            epilog="For the full help on the  review and list commands, run "
+            "'sympy-bot command -h'.",
+            formatter_class=ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(title="command", dest="command")
-    # Config file default
-    parser.add_argument("-R", "--repository", type=str, help="GitHub "
-        "repository used, allowing  sympy-bot to be used with other projects, "
-        "default is 'sympy/sympy'")
+    parser.add_argument("-R", "--repository", type=str, default="sympy/sympy",
+		help="GitHub repository used, allowing sympy-bot to be used with "
+		"other projects")
 
     parser_review = subparsers.add_parser("review",
-        description="Reviews specified pull requests.")
+        description="Reviews specified pull requests.",
+        help="Reviews pull requests",
+        formatter_class=ArgumentDefaultsHelpFormatter)
     parser_review.add_argument("n", nargs="+",
         help="Numbers of pull requests to review. You can also specify 'all' "
         "or 'mergable' pull requests.")
@@ -40,80 +51,78 @@ def main():
         action="store_false", help="Do not upload the review to the server")
     parser_review.add_argument("-3", "--python3", action="store_true",
         help="Force use of Python 3.x, changes default interpreter to "
-        "'python3'")
+        "python3")
     parser_review.add_argument("-D", "--build-docs", action="store_true",
-        help="Test the building of the Sphinx HTML documentation (default is "
-        "no)")
+        help="Test the building of the Sphinx HTML documentation")
     parser_review.add_argument("--no-comment", dest="comment",
         action="store_false", help="Upload review but do not submit summary "
         "comment to pull request on GitHub")
-    # Config file default
     parser_review.add_argument("-i", "--interpreter", action="append",
-        type=str, help="Python interpreter used to run tests, default is "
-        "'python'")
-    # Config file default
-    parser_review.add_argument("-t", "--testcommand", type=str, help="Command, "
-        "run as an argument of `python`,used to execute tests, allowing the "
-        "use of sympy-bot on a subset of the tests, default is 'setup.py "
-        "test', to run a command that is not an argument of `python`, add "
-        "'-V;' to the beginning of the option, for example '-V; mycommand'")
-    # Config file default
-    parser_review.add_argument("--build-docs-command", type=str, help="Command "
-        "run to build the Sphinx docs (default is 'make html-errors')")
-    # Config file default
-    parser_review.add_argument("--build-docs-dir", type=str, help="Directory "
-        "in which to build the Sphinx docs (default is 'doc')")
-    # Config file default
+        nargs="?", type=str, default=default_interpreter, help="Python "
+        "interpreter used run tests")
+    parser_review.add_argument("-t", "--testcommand", type=str,
+        default=default_testcommand, metavar="COMMAND", help="Command, run as "
+        "an argument of `python`, used to execute tests, allowing the use of "
+        "sympy-bot on a subset of the tests, to run a command that is not an "
+        "argument of `python`, add '-V;' to the beginning of the option, for "
+        "example '-V; mycommand'")
+    parser_review.add_argument("--build-docs-command", type=str,
+        default="make html-errors", metavar="COMMAND", help="Command run to "
+        "build the Sphinx docs")
+    parser_review.add_argument("--build-docs-dir", type=str, default="doc",
+        metavar="DIR", help="Directory in which to build the Sphinx docs")
     parser_review.add_argument("-r", "--reference", type=str, help="Path to "
         "sympy repository, passed to 'git clone <sympy repo>', setting this "
         "speeds up sympy-bot and decreases network traffic")
     parser_review.add_argument("-m", "--master-commit", type=str,
-        default="origin/master", help="Commit to use as master for merging, "
-        "default is 'origin/master', which uses the current master, use "
-        "'HEAD' to not merge")
-    # Config file default
-    parser_review.add_argument("-p", "--protocol", type=str, choices=["https",
-        "git"], help="Protocol for communicating with GitHub")
-    # Config file default
+        default="origin/master", metavar="COMMIT", help="Commit to use as "
+        "master for merging, use 'HEAD' to not merge")
+    parser_review.add_argument("-p", "--protocol", type=str,
+        default=default_protocol, choices=["https", "git"], help="Protocol "
+        "for communicating with GitHub")
     parser_review.add_argument("-s", "--server", type=str,
-        help="Server to upload results, default is http://reviews.sympy.org")
+        default="http://reviews.sympy.org", help="Server to upload results")
 
-    parser_list = subparsers.add_parser('list')
+    parser_list = subparsers.add_parser("list",
+        description="Lists available pull requests",
+        help="Lists available pull requests",
+        formatter_class=ArgumentDefaultsHelpFormatter)
     parser_list.add_argument("-n", "--numbers", action="store_true",
         help="List only the numbers of open pull requests, suitable for "
         "piping into 'xargs -L 1 sympy-bot review'")
 
+    # Initial parse to print help
     options = parser.parse_args()
+    # Unset interpreter default, as it requires some more refined control
+    parser.set_defaults(interpreter=None)
+    # Load configuration and set defaults from it
     config = load_config_file()
+    if "interpreter" in config:
+        default_interpreter = [i.strip() for i in config.pop("interpreter").split(",")]
+    if "interpreter3" in config:
+        default_interpreter3 = [i.strip() for i in config.pop("interpreter3").split(",")]
+    parser.set_defaults(**config)
+    # Parse args
+    options = parser.parse_args()
 
-    if options.repository is None:
-        options.repository = config.get("repository", default_repository)
-
-    options.user = config.get("user")
-    options.password = config.get("password")
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
     if options.command == "list":
         list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
-        if options.reference is None:
-            options.reference = config.get("reference")
-        if options.testcommand is None:
-            options.testcommand = config.get("testcommand", default_testcommand)
         if options.interpreter is None:
-            if options.python3:
-                options.interpreter = [config.get("interpreter3", default_interpreter3)]
+            if options.build_docs:
+                options.interpreter = []
+            elif options.python3:
+                options.interpreter = default_interpreter3
             else:
-                options.interpreter = [config.get("interpreter", default_interpreter)]
-        if options.build_docs_command is None:
-            options.build_docs_command = config.get("build_docs_command", default_build_docs_command)
-        if options.build_docs_dir is None:
-            options.build_docs_dir = config.get("build_docs_dir", default_build_docs_dir)
-        if options.protocol is None:
-            options.protocol = config.get("protocol", default_protocol)
-        if options.server is None:
-            options.server = config.get("server", default_server)
+                options.interpreter = default_interpreter
+        if options.interpreter == [None]:
+            if options.python3:
+                options.interpreter = default_interpreter3
+            else:
+                options.interpreter = default_interpreter
 
         if options.n == "mergable":
             print "> Reviewing all *mergeable* pull requests"
@@ -130,7 +139,7 @@ def main():
             options.n = map(int, options.n)
 
         if options.upload:
-            username, password = github_authenticate(urls.api_url, options)
+            username, password = github_authenticate(urls.api_url, config.get("user"), config.get("password"))
         else:
             username = password = None
 
@@ -141,16 +150,19 @@ def main():
             sys.exit(1)
 
 def load_config_file():
+    from ConfigParser import SafeConfigParser
+    from StringIO import StringIO
+
     conf_file = os.path.normpath('.sympy/sympy-bot.conf')
     conf_file = os.path.join('~', conf_file)
     conf_file = os.path.expanduser(conf_file)
 
-    if os.path.exists(conf_file):
-        namespace = {}
+    parser = SafeConfigParser()
 
+    if os.path.exists(conf_file):
         with open(conf_file) as f:
             try:
-                exec f.read() in namespace
+                string = StringIO("[sympy-bot]\n" + f.read())
             except (SystemExit, KeyboardInterrupt):
                 raise
             except:
@@ -158,7 +170,8 @@ def load_config_file():
                 pass
             else:
                 print "> Using %s" % conf_file
-                return namespace
+                parser.readfp(string)
+                return dict(parser.items("sympy-bot"))
     return {}
 
 def dispatch_reviews(config, urls, **kwargs):
@@ -331,11 +344,12 @@ See the report for a list of the merge conflicts.""" % atuser
         else:
             raise ValueError("Unknown report_status")
 
-        report += """**Interpreter %d:** %s
+        if len(config.interpreter) > 1:
+            report += """**Interpreter %d:** %s\n""" % (n, summary)
 
-Test results html report: %s
+        report += """Test results html report: %s
 
-%s\n""" % (n, summary, report_url[i], details)
+%s\n""" % (report_url[i], details)
 
     if config.build_docs:
         details = get_sphinx_version()
