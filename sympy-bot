@@ -181,7 +181,7 @@ def dispatch_reviews(config, urls, **kwargs):
     interpreters = config.interpreter
 
     # Check interpreters
-    python3 = {i: get_interpreter_version_info(i)[0] == '3' for i in interpreters}
+    python3 = dict( [(i, get_interpreter_version_info(i)[0] == '3') for i in interpreters] )
     if config.python3 and not all(python3.itervalues()):
         raise ValueError("Python 2 interpreter passed with -3 option")
 
@@ -259,13 +259,13 @@ def dispatch_reviews(config, urls, **kwargs):
     for n, pull_review in reviews.iteritems():
         master_hash = pull_review.pop("master_hash")
         branch_hash = pull_review.pop("branch_hash")
-        report_status = {i: result["result"] for i, result in pull_review.iteritems()}
-        xpassed = {i: result["xpassed"] for i, result in pull_review.iteritems()}
+        report_status = dict([(i, result["result"]) for i, result in pull_review.iteritems()])
+        xpassed = dict([(i, result["xpassed"]) for i, result in pull_review.iteritems()])
 
         if config.upload:
             print "> Uploading test results for pull number %d" % n
             url_base = config.server
-            data = {i: {
+            data = dict([(i, {
                 "num" : n,
                 "result" : report_status[i],
                 "interpreter": i,
@@ -273,12 +273,12 @@ def dispatch_reviews(config, urls, **kwargs):
                 "testcommand": config.testcommand,
                 "master_hash": master_hash,
                 "branch_hash": branch_hash,
-            } for i in pull_review.iterkeys()}
-            report_url = {i: reviews_sympy_org_upload(data[i], url_base) for i in pull_review.iterkeys()}
+            }) for i in pull_review.iterkeys()])
+            report_url = dict([(i, reviews_sympy_org_upload(data[i], url_base)) for i in pull_review.iterkeys()])
             for i, url in report_url.iteritems():
                 print "> Uploaded report for '%s' at: %s" % (i, url)
         else:
-            report_url = {i: "(report was not uploaded)" for i in pull_review.iterkeys()}
+            report_url = dict([(i, "(report was not uploaded)") for i in pull_review.iterkeys()])
         review = formulate_review(report_url, report_status, xpassed,
                 master_hash, branch_hash, user, config)
         print "> Review:"
