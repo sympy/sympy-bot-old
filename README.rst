@@ -49,34 +49,34 @@ Configuration
 You can avoid providing your username and password, give a reference to a local
 clone of SymPy's repository, or use a custom test command every time when you
 use SymPy Bot by creating a configuration file for SymPy Bot at
-``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
+``~/.sympy/sympy-bot.conf``. The first time you run sympy-bot and need to
+authenticate with GitHub, you will be prompted to create a configuration file
+and OAuth token. Alternately, you can create this file on you own and add the
+following lines to it::
 
     user = "username"
-    password = "password"
+    token = "your GitHub API token"
 
-You can also setup an OAuth token to authenticate to GitHub. If you aren't
-using a token and need to login, you will be promped if you want one generated
-for you. Alternately, to create a token on your own, run the following
-command::
+You can create a token on your own by running the following command::
 
     curl -u 'username' -d '{"scopes":["repo"],"note":"SymPy Bot"}' \
     https://api.github.com/authorizations
 
 and enter your password at the prompt. In the information that is printed out,
-take the token and add the following line to your configuration file::
+take the token and add it to your configuration file, as above.
 
-    token = "your GitHub API token"
-
-If you intend on publishing your dotfiles publicly, you can put your token in a separate file and reference that file in your configuration like this::
+If you intend on publishing your dotfiles publicly, you can put your token in a
+separate file and reference that file in your configuration like this::
 
     token_file = "~/path/to/token"
 
+The token file then only has your token in it (without quotes around it).
+
 You can manage your authorizations at https://github.com/settings/applications.
-When both token and password are present, the it defaults to using the token.
-If you use either of these methods, for your safety, be sure that the
-configuration file has proper permissions assigned, e.g. 600.  If you supply a
-username without a password or API token, then sympy-bot will ask you for your
-GitHub password on each invocation.
+If you use token authentication, for your safety, be sure that the
+configuration file and token have proper permissions assigned, e.g. 600.  If
+you supply a username without a password or API token, then sympy-bot will ask
+you for your GitHub password on each invocation.
 
 To avoid having to clone the SymPy repository every time the bot is run, you
 can add::

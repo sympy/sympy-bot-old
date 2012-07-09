@@ -296,8 +296,10 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
 def github_authenticate(url, config):
-    def get_password(password=None):
+    def get_password():
         while True:
+            password = getpass("Password: ")
+
             if password:
                 try:
                     print "> Checking username and password ..."
@@ -307,7 +309,6 @@ def github_authenticate(url, config):
                 else:
                     print ">     OK"
                     return password
-            password = getpass("Password: ")
 
     if config.user:
         username = config.user
@@ -326,10 +327,7 @@ def github_authenticate(url, config):
             print ">     OK"
             return username, None, config.token
 
-    if config.password:
-        password = get_password(config.password)
-    else:
-        password = get_password()
+    password = get_password()
 
     generate = raw_input("> Generate API token? [Y/n] ")
     if generate.lower() in ["y", "yes", ""]:

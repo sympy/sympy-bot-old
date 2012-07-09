@@ -98,7 +98,6 @@ Commands:
     proto = options.proto if options.proto != default_proto else default_proto
 
     options.user = config.get("user")
-    options.password = config.get("password")
     options.token = config.get("token")
     options.token_file = config.get("token_file")
     if not options.token and options.token_file:
