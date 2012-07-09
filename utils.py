@@ -278,6 +278,17 @@ def list_pull_requests(urls, numbers_only=False):
         print
     return nonmergeable, mergeable_list
 
+def generate_token(url, username, password):
+    enc_data = json.dumps(
+        {
+            "scopes" : ["repo"],
+            "note" : "SymPy Bot"
+        }
+    )
+
+    rep = query2github(url, username=username, password=password, data=enc_data)
+    return rep["token"]
+
 _login_message = """\
 Enter your GitHub username & password or press ^C to quit. The password
 will be kept as a Python variable as long as sympy-bot is running and
@@ -315,10 +326,15 @@ def github_authenticate(url, config):
             print ">     OK"
             return username, None, config.token
 
-    if password:
-        password = get_password(password)
+    if config.password:
+        password = get_password(config.password)
     else:
         password = get_password()
+
+    generate = raw_input("> Generate API token? [Y/n] ")
+    if generate.lower() in ["y", "yes", ""]:
+        token = generate_token("https://api.github.com/authorizations", username, password)
+        return username, password, token
 
     return username, password, None
 
@@ -340,13 +356,13 @@ def query2github(url, username=None, password=None, token=None, data=""):
     try:
         http_response = urlopen(request)
         response_body = json.load(http_response)
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         # Auth exception
         if e.code == 401:
             raise AuthenticationFailed("invalid username or password")
         # Other exceptions
         raise urllib2.HTTPError(e.filename, e.code, e.msg, None, None)
-    except ValueError, e:
+    except ValueError as e:
         # If auth was successful
         if http_response.code in (204, 302):
             return []

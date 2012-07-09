@@ -8,6 +8,7 @@ from tempfile import mkdtemp
 import subprocess
 import os
 from os.path import expandvars
+import stat
 import urllib2
 import base64
 from urllib import urlencode
@@ -99,6 +100,9 @@ Commands:
     options.user = config.get("user")
     options.password = config.get("password")
     options.token = config.get("token")
+    options.token_file = config.get("token_file")
+    if not options.token and options.token_file:
+        options.token = load_token_file(options.token_file)
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
@@ -137,6 +141,14 @@ Commands:
                 nums = [int(x) for x in args]
             if options.upload:
                 username, password, token = github_authenticate(urls.api_url, options)
+                if config == {}:
+                    create = raw_input("> No config file found, create? [Y/n] ")
+                    if create.lower() in ["y", "yes", ""]:
+                        save_config_file(username, password, token)
+                elif password and token:
+                    create = raw_input("> Save token information to configuration file? [Y/n] ")
+                    if create.lower() in ["y", "yes", ""]:
+                        save_token(token)
             else:
                 username = password = token = None
             try:
@@ -208,7 +220,6 @@ def load_config_file():
     conf_file = os.path.normpath('.sympy/sympy-bot.conf')
     conf_file = os.path.join('~', conf_file)
     conf_file = os.path.expanduser(conf_file)
-    print conf_file
 
     if os.path.exists(conf_file):
         namespace = {}
@@ -219,13 +230,130 @@ def load_config_file():
             except (SystemExit, KeyboardInterrupt):
                 raise
             except:
-                print "WARNING: The config file cannot be parsed."
+                print "> WARNING: The config file cannot be parsed."
                 pass
             else:
-                print "> Using %s" % conf_file
+                print "> Using configuration file %s" % conf_file
                 return namespace
 
     return {}
+
+def save_config_file(username, password, token):
+    filename = "~/.sympy/sympy-bot.conf"
+    filename = os.path.expanduser(filename)
+    filename = os.path.abspath(filename)
+    folder, _ = os.path.split(filename)
+    output = "user = \"%s\"\n" % username
+    if token:
+        output_token = raw_input("> Create separate file for token? [Y/n] ")
+        if output_token.lower() in ["y", "yes", ""]:
+            token_file = raw_input("> Enter token file location [~/.sympy/token] ")
+            if token_file == "":
+                token_file = "~/.sympy/token"
+            output += "token_file = \"%s\"\n" % token_file
+            token_file = os.path.expanduser(token_file)
+            token_file = os.path.abspath(token_file)
+            token_folder, _ = os.path.split(token_file)
+            try:
+                if not os.path.isdir(token_folder):
+                    os.mkdir(token_folder, 0o700)
+                with open(token_file, 'w') as f:
+                    f.write(token)
+                os.chmod(token_file, stat.S_IREAD | stat.S_IWRITE)
+            except OSError:
+                print "> Unable to create folder for token file"
+                return
+            except IOError:
+                print "> Unable to save token file"
+                return
+        else:
+            output += "token = \"%s\"\n" % token
+    elif password:
+        output_pass = raw_input("> Save password to file? [y/N] ")
+        if output_pass.lower() in ["y", "yes"]:
+            output += "password = \"%s\"\n" % password
+    try:
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+        with open(filename, 'w') as f:
+            f.write(output)
+    except OSError:
+        print "> Unable to create folder for configuration file"
+        return
+    except IOError:
+        print "> Unable to save configuration file"
+        return
+    print "> Configuration file saved"
+
+def load_token_file(path):
+    print "> Using token file %s" % path
+
+    path = os.path.expanduser(path)
+    path = os.path.abspath(path)
+
+    if os.path.isfile(path):
+        try:
+            with open(path) as f:
+                token = f.readline()
+        except IOError:
+            print "> Unable to read token file"
+            return
+    else:
+        print "> Token file does not exist"
+        return
+
+    return token
+
+
+def save_token(token):
+    filename = "~/.sympy/sympy-bot.conf"
+    filename = os.path.expanduser(filename)
+    filename = os.path.abspath(filename)
+    folder, _ = os.path.split(filename)
+
+    output_token = raw_input("> Create separate file for token? [Y/n] ")
+    if output_token.lower() in ["y", "yes", ""]:
+        token_file = raw_input("> Enter token file location [~/.sympy/token] ")
+        if token_file == "":
+            token_file = "~/.sympy/token"
+        output = "token_file = \"%s\"\n" % token_file
+        token_file = os.path.expanduser(token_file)
+        token_file = os.path.abspath(token_file)
+        token_folder, _ = os.path.split(token_file)
+        try:
+            if not os.path.isdir(token_folder):
+                os.mkdir(token_folder, 0o700)
+            with open(token_file, 'w') as f:
+                f.write(token + '\n')
+            os.chmod(token_file, stat.S_IREAD | stat.S_IWRITE)
+        except OSError:
+            print "> Unable to create folder for token file"
+            return
+        except IOError:
+            print "> Unable to save token file"
+            return
+    else:
+        output = "token = \"%s\"\n" % token
+
+    try:
+        if not os.path.isdir(folder):
+            os.mkdir(folder)
+        with open(filename, 'r') as f:
+            config = f.read()
+        if config.find("password") > -1:
+            start = config.find("password")
+            end = config.find('\n', start)
+            config = config[:start] + config[end+1:]
+        with open(filename, 'w') as f:
+            f.write(config)
+            f.write(output)
+    except OSError:
+        print "> Unable to create folder for configuration file"
+        return
+    except IOError:
+        print "> Unable to save configuration file"
+        return
+    print "> Token file saved"
 
 def get_executable(interpreter):
     path = os.environ['PATH']
@@ -287,7 +415,7 @@ def review(urls, n, config, **kwargs):
     repo = repo.replace(default_proto, proto) if proto != default_proto else repo
     branch = pull["head"]["ref"]
     user = pull["head"]["user"]
-    user_info = github_get_user_info(urls.user_info_template, username)
+    user_info = github_get_user_info(urls.user_info_template, user["login"])
     author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                               user_info.get("email", ""))
     print "> Pull request info:"

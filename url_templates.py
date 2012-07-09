@@ -3,12 +3,13 @@ class URLs(object):
     This class contains URLs and templates which used in requests to GitHub API
     """
 
-    def __init__(self, user="sympy", repo="sympy", api_url="https://api.github.com"):
+    def __init__(self, user="sympy", repo="sympy", api_url="https://api.github.com", authorize_url="https://api.github.com/authorizations"):
         """ Generates all URLs and templates """
 
         self.user = user
         self.repo = repo
         self.api_url = api_url
+        self.authorize_url = authorize_url
 
         self.pull_list_url = api_url + "/repos" + "/" + user + "/" + repo + "/pulls" 
         self.single_pull_template = self.pull_list_url + "/%d"

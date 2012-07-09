@@ -54,8 +54,10 @@ use SymPy Bot by creating a configuration file for SymPy Bot at
     user = "username"
     password = "password"
 
-You can also setup an OAuth token to authenticate to GitHub. To create a token,
-run the following command::
+You can also setup an OAuth token to authenticate to GitHub. If you aren't
+using a token and need to login, you will be promped if you want one generated
+for you. Alternately, to create a token on your own, run the following
+command::
 
     curl -u 'username' -d '{"scopes":["repo"],"note":"SymPy Bot"}' \
     https://api.github.com/authorizations
@@ -64,6 +66,10 @@ and enter your password at the prompt. In the information that is printed out,
 take the token and add the following line to your configuration file::
 
     token = "your GitHub API token"
+
+If you intend on publishing your dotfiles publicly, you can put your token in a separate file and reference that file in your configuration like this::
+
+    token_file = "~/path/to/token"
 
 You can manage your authorizations at https://github.com/settings/applications.
 When both token and password are present, the it defaults to using the token.
@@ -75,10 +81,18 @@ GitHub password on each invocation.
 To avoid having to clone the SymPy repository every time the bot is run, you
 can add::
 
-    reference = "path to a local clone of SymPy's repository"
+    reference = "~/path/to/local/sympy"
 
+A typical configuration will look something like this::
 
-You can get your GitHub API token by going to https://github.com/account/admin.
+    user = "sympy"
+    token_file = "~/.sympy/token"
+    reference = "~/sympy"
+    interpreter = "/path/to/default/python"
+    interpreter3 = "/path/to/default/python3"
+
+If you do not have a configuration file, you will be prompted to make one after
+logging in.
 
 Foreign repositories
 --------------------
