@@ -48,8 +48,8 @@ def main():
     parser_review.add_argument("--profile", type=str, default="default",
         help="Configuration file profile to use, see README for information "
         "about setting up profiles")
-    parser_review.add_argument("-n", "--no-upload", dest="upload",
-        action="store_false", help="Do not upload the review to the server")
+    parser_review.add_argument("-n", "--no-upload", action="store_true",
+        help="Do not upload the review to the server")
     parser_review.add_argument("-3", "--python3", action="store_true",
         help="Force use of Python 3.x, changes default interpreter to "
         "python3")
@@ -106,12 +106,23 @@ def main():
 
     # Initial parse to print help
     options = parser.parse_args()
-    # Unset interpreter default, as it requires some more refined control
-    parser.set_defaults(interpreter=None)
     # Load configuration and set defaults from it
     config = load_config_file(options.profile)
+    # Parse args that should be booleans, but come as strings from ConfigParser
+    for i in ("build_docs", "no_comment", "no_upload", "python3"):
+        if i in config:
+            if isinstance(config[i], str):
+                if config[i].strip().lower() in ("true", "y", "yes"):
+                    config[i] = True
+                elif config[i].strip().lower() in ("false", "n", "no"):
+                    config[i] = False
+                else:
+                    raise ConfigParser.Error("Unable to parse boolean configuration value for %s" % i)
+    # If interpreter is set in config file, force tests to run
+    parser.set_defaults(interpreter=None)
     if "interpreter" in config:
         default_interpreter = [i.strip() for i in config.pop("interpreter").split(",")]
+        parser.set_defaults(interpreter=[None])
     if "interpreter3" in config:
         default_interpreter3 = [i.strip() for i in config.pop("interpreter3").split(",")]
     parser.set_defaults(**config)
@@ -124,15 +135,18 @@ def main():
     if options.command == "list":
         list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
-        if options.interpreter is None:
-            if options.build_docs:
-                options.interpreter = []
-            elif options.python3:
+        # Passed a bare `-i` command
+        if options.interpreter == [None]:
+            if options.python3:
                 options.interpreter = default_interpreter3
             else:
                 options.interpreter = default_interpreter
-        if options.interpreter == [None]:
-            if options.python3:
+        # No command line interpreter
+        elif options.interpreter is None:
+            # -D with no -i and no -3 runs with no interpreters
+            if options.build_docs and not options.python3:
+                options.interpreter = []
+            elif options.python3:
                 options.interpreter = default_interpreter3
             else:
                 options.interpreter = default_interpreter
@@ -151,7 +165,7 @@ def main():
             # list of pull request numbers, convert it:
             options.n = map(int, options.n)
 
-        if options.upload:
+        if not options.no_upload:
             username, password = github_authenticate(urls.api_url, config.get("user"), config.get("password"))
         else:
             username = password = None
@@ -280,7 +294,7 @@ def dispatch_reviews(config, urls, **kwargs):
         report_status = dict([(i, result["result"]) for i, result in pull_review.iteritems()])
         xpassed = dict([(i, result["xpassed"]) for i, result in pull_review.iteritems()])
 
-        if config.upload:
+        if not config.no_upload:
             print "> Uploading test results for pull number %d" % n
             url_base = config.server
             data = dict([(i, {
@@ -301,7 +315,7 @@ def dispatch_reviews(config, urls, **kwargs):
                 master_hash, branch_hash, user, config)
         print "> Review:"
         print review
-        if config.upload and config.comment:
+        if not config.no_upload and config.comment:
             print "> Uploading the review to the GitHub pull request ..."
             github_add_comment_to_pull_request(urls.issue_comment_template, \
                                                username, password, n, review

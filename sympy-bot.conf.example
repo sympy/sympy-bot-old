@@ -7,6 +7,13 @@ interpreter = /path/to/python2.5, /path/to/python3.2
 [full-tests]
 interpreter = /path/to/python2.5, /path/to/python3.2, /path/to/32bit/python2.5, /path/to/32bit/python3.2
 
+[full-tests-docs]
+interpreter = /path/to/python2.5, /path/to/python3.2, /path/to/32bit/python2.5, /path/to/32bit/python3.2
+build_docs = True
+
+[docs]
+build_docs = True
+
 [slow-tests]
 interpreter = /path/to/python2.5, /path/to/python3.2
 testcommand = bin/test --slow
