@@ -52,26 +52,45 @@ connections.
 Configuration
 -------------
 
-You can avoid providing your username and password, give a reference to a local
-clone of SymPy's repository, or use a custom test command every time when you
-use SymPy Bot by creating a configuration file for SymPy Bot at
-``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
+You can configure SymPy bot to remember your GitHub credentials, use an
+existing clone of sympy and run interpreters under different profiles. This is
+done in the ``~/.sympy/sympy-bot.conf`` file. The configuration supports
+multiple profiles, but will always read in the [default] profile, so you should
+start your configuration with your GitHub credentials in the default profile::
 
+    [default]
     user = username
     password = password
 
-To avoid having to clone the SymPy repository, you can add::
+If you have an existing clone of sympy, you can avoid having to clone the SymPy
+repository every time the bot is run::
 
-    reference = /path/to/sympy
+    reference = ~/path/to/sympy
 
-You can also override any of the other defaults by setting the configuration
-file. These options include::
+You can specify the interpreters to use by giving a comma separated list of
+Python interpreters::
 
-    interpreter = Python interpreter (comma separated)
-    interpreter3 = Python 3 interpreter (comma separated)
-    testcommand = command to run tests
-    repository = remote SymPy's repository
-    server = server to upload reviews
+    interpreter = /path/to/python, /path/to/other/python
+
+If you pass the ``-3`` flag, the interpreters will be read from the
+``interpreter3`` option.
+
+Any of the other options set by commandline parameters can be set in the
+configuration file. See ``sympy-bot --help`` for more information.
+
+The configuration also supports different profiles. To set these up, you put
+the name of the profile between square brackets. Then, when you pass
+``--profile profile_name``, the options in the specified section will override
+the default section. This is done in the config file::
+
+    [profile_name]
+    interpreter = /path/to/different/python
+    testcommand = bin/test --other-options
+
+This can be useful for setting up various suites of tests, e.g. slow tests,
+32-bit/64-bit tests, etc.
+
+To see an example configuration file, see the ``sympy-bot.conf.example`` file.
 
 Foreign repositories
 --------------------

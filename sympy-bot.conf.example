@@ -1,0 +1,12 @@
+[default]
+user = username
+password = 123password
+reference = ~/sympy
+interpreter = /path/to/python2.5, /path/to/python3.2
+
+[full-tests]
+interpreter = /path/to/python2.5, /path/to/python3.2, /path/to/32bit/python2.5, /path/to/32bit/python3.2
+
+[slow-tests]
+interpreter = /path/to/python2.5, /path/to/python3.2
+testcommand = bin/test --slow

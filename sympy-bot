@@ -1,10 +1,11 @@
 #! /usr/bin/env python
 
 import sys
+import os
+import ConfigParser
+
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tempfile import mkdtemp
-import os
-from os.path import expandvars
 
 from utils import (cmd, github_get_pull_request,
         github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
@@ -36,9 +37,6 @@ def main():
             "'sympy-bot command -h'.",
             formatter_class=ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(title="command", dest="command")
-    parser.add_argument("-R", "--repository", type=str, default="sympy/sympy",
-		help="GitHub repository used, allowing sympy-bot to be used with "
-		"other projects")
 
     parser_review = subparsers.add_parser("review",
         description="Reviews specified pull requests.",
@@ -47,6 +45,9 @@ def main():
     parser_review.add_argument("n", nargs="+",
         help="Numbers of pull requests to review. You can also specify 'all' "
         "or 'mergable' pull requests.")
+    parser_review.add_argument("--profile", type=str, default="default",
+        help="Configuration file profile to use, see README for information "
+        "about setting up profiles")
     parser_review.add_argument("-n", "--no-upload", dest="upload",
         action="store_false", help="Do not upload the review to the server")
     parser_review.add_argument("-3", "--python3", action="store_true",
@@ -74,6 +75,9 @@ def main():
     parser_review.add_argument("-r", "--reference", type=str, help="Path to "
         "sympy repository, passed to 'git clone <sympy repo>', setting this "
         "speeds up sympy-bot and decreases network traffic")
+    parser_review.add_argument("--profile", type=str, default="default",
+        help="Configuration file profile to use, see README for information "
+        "about setting up profiles")
     parser_review.add_argument("-m", "--master-commit", type=str,
         default="origin/master", metavar="COMMIT", help="Commit to use as "
         "master for merging, use 'HEAD' to not merge")
@@ -82,6 +86,9 @@ def main():
         "for communicating with GitHub")
     parser_review.add_argument("-s", "--server", type=str,
         default="http://reviews.sympy.org", help="Server to upload results")
+    parser_review.add_argument("-R", "--repository", type=str, default="sympy/sympy",
+        help="GitHub repository used, allowing sympy-bot to be used with "
+        "other projects")
 
     parser_list = subparsers.add_parser("list",
         description="Lists available pull requests",
@@ -90,13 +97,19 @@ def main():
     parser_list.add_argument("-n", "--numbers", action="store_true",
         help="List only the numbers of open pull requests, suitable for "
         "piping into 'xargs -L 1 sympy-bot review'")
+    parser_list.add_argument("--profile", type=str, default="default",
+        help="Configuration file profile to use, see README for information "
+        "about setting up profiles")
+    parser_list.add_argument("-R", "--repository", type=str, default="sympy/sympy",
+        help="GitHub repository used, allowing sympy-bot to be used with "
+        "other projects")
 
     # Initial parse to print help
     options = parser.parse_args()
     # Unset interpreter default, as it requires some more refined control
     parser.set_defaults(interpreter=None)
     # Load configuration and set defaults from it
-    config = load_config_file()
+    config = load_config_file(options.profile)
     if "interpreter" in config:
         default_interpreter = [i.strip() for i in config.pop("interpreter").split(",")]
     if "interpreter3" in config:
@@ -149,29 +162,34 @@ def main():
             print "\n> Quitting on signal SIGINT."
             sys.exit(1)
 
-def load_config_file():
-    from ConfigParser import SafeConfigParser
-    from StringIO import StringIO
-
-    conf_file = os.path.normpath('.sympy/sympy-bot.conf')
-    conf_file = os.path.join('~', conf_file)
+def load_config_file(profile):
+    conf_file = os.path.normpath('~/.sympy/sympy-bot.conf')
     conf_file = os.path.expanduser(conf_file)
 
-    parser = SafeConfigParser()
+    parser = ConfigParser.SafeConfigParser()
 
     if os.path.exists(conf_file):
+        print "> Using config file %s" % conf_file
         with open(conf_file) as f:
             try:
-                string = StringIO("[sympy-bot]\n" + f.read())
-            except (SystemExit, KeyboardInterrupt):
-                raise
-            except:
-                print "WARNING: The config file cannot be parsed."
-                pass
-            else:
-                print "> Using %s" % conf_file
-                parser.readfp(string)
-                return dict(parser.items("sympy-bot"))
+                parser.readfp(f)
+            except IOError:
+                print "> WARNING: Unable to open config file"
+            except ConfigParser.Error:
+                print "> WARNING: Unable to parse config file"
+            finally:
+                print "> Loaded configuration file"
+
+                if parser.has_section(profile):
+                    items = dict(parser.items(profile))
+                else:
+                    print "> WARNING: Configuration file does not contain profile %s" % profile
+                    items = {}
+
+                if profile != "default" and parser.has_section("default"):
+                    items = dict(parser.items("default", vars=items))
+
+                return items
     return {}
 
 def dispatch_reviews(config, urls, **kwargs):
