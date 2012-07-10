@@ -273,14 +273,20 @@ def dispatch_reviews(config, urls, **kwargs):
                 log.write(result["log"])
             if config.build_docs:
                 print "> Building Sphinx docs"
-                repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
-                result = run_tests(repo_url, branch, repo_path,
-                        config.build_docs_command, False, config.master_commit)
-                if result["result"] == "error":
-                    print "There was an error. Report not uploaded."
-                    sys.exit(1)
-                print "> Done."
-                print
+                if get_sphinx_version() is None:
+                    print "> WARNING: Cannot find sphinx, disabling building HTML docs"
+                    if interpreters == []:
+                        print "> No tests to run, exiting"
+                        exit()
+                else:
+                    repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
+                    result = run_tests(repo_url, branch, repo_path,
+                            config.build_docs_command, False, config.master_commit)
+                    if result["result"] == "error":
+                        print "There was an error. Report not uploaded."
+                        sys.exit(1)
+                    print "> Done."
+                    print
 
                 pull_review["build docs"] = result
                 log.write(result["log"])
@@ -451,7 +457,10 @@ def get_platform_version(interpreter):
     return r
 
 def get_sphinx_version():
-    import sphinx
+    try:
+        import sphinx
+    except ImportError:
+        return
     version = sphinx.__version__
     r = "*Sphinx version:* %s" % version
     return r
