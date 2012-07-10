@@ -30,8 +30,9 @@ if dev_server:
 else:
     url_base = "http://reviews.sympy.org"
 
-polled_user = ""
-polled_repo = ""
+# default github user and repo
+polled_user = "sympy"
+polled_repo = "sympy"
 
 class RequestHandler(webapp.RequestHandler):
 
@@ -272,8 +273,10 @@ class UploadPull(RequestHandler):
                 except json.JSONDecodeError:
                     self.error(400)
                     self.response.out.write("Incorrect request format\n")
+                user_repo = payload["repository"]["full_name"]
+                # Download complete pull request with information about mergeability
+                pull_request = github_get_pull_request(user_repo, payload["number"])
                 num = payload["number"]
-                pull_request = payload["pull_request"]
                 # Get the old entity or create a new one:
                 p = PullRequest.all()
                 p.filter("num =", int(num))
@@ -362,28 +365,12 @@ class WorkerNG(webapp.RequestHandler):
     (calls when admin press "Populate" button)
     """
     def post(self):
-        try:
-            user = polled_user or "sympy"
-            repo = polled_repo or "sympy"
-            polled_url = "https://api.github.com/repos/" + user + "/" + repo + \
-                         "/pulls"
-            http_response = urllib2.urlopen(polled_url)
-            payload = json.load(http_response)
-            for pos in xrange(len(payload)):
-                polled_url = "https://api.github.com/repos/" + user + "/" + \
-                             repo + "/pulls/" + str(payload[pos]["number"])
-                http_response = urllib2.urlopen(polled_url)
-                pull_info = json.load(http_response)
-                payload[pos]["mergeable"] = pull_info["mergeable"]
-        except urllib2.HTTPError, e:
-            logging.error("Unapected error happen when polling github, %s" % e)
-            self.error(500)
-            self.response.out.write("Server error\n")
-        except json.JSONDecodeError, e:
-            logging.error("JSON parsing error, %s" % e)
-            self.error(500)
-            self.response.out.write("Server error\n")
-
+        user_repo = polled_user + "/" + polled_repo
+        payload = github_get_pull_request_all_v3(user_repo)
+        # checkout mergeability
+        for pos in xrange(len(payload)):
+            pull = github_get_pull_request(user_repo, payload[pos]["number"])
+            payload[pos]["mergeable"] = pull["mergeable"]
         # Process each pull request from payload
         for pull in payload:
             p = PullRequest.all()
