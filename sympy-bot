@@ -150,6 +150,8 @@ def main():
                 options.interpreter = default_interpreter3
             else:
                 options.interpreter = default_interpreter
+        if options.interpreter == ["None"]:
+            options.interpreter = []
 
         if options.n == "mergable":
             print "> Reviewing all *mergeable* pull requests"

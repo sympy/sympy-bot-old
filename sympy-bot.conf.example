@@ -2,17 +2,18 @@
 user = username
 password = 123password
 reference = ~/sympy
-interpreter = /path/to/python2.5, /path/to/python3.2
+interpreter = /path/to/python
 
 [full-tests]
-interpreter = /path/to/python2.5, /path/to/python3.2, /path/to/32bit/python2.5, /path/to/32bit/python3.2
+interpreter = /path/to/python2.5, /path/to/python3.2
 
 [full-tests-docs]
-interpreter = /path/to/python2.5, /path/to/python3.2, /path/to/32bit/python2.5, /path/to/32bit/python3.2
+interpreter = /path/to/python2.5, /path/to/python3.2
 build_docs = True
 
 [docs]
 build_docs = True
+interpreter = None
 
 [slow-tests]
 interpreter = /path/to/python2.5, /path/to/python3.2

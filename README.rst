@@ -73,7 +73,9 @@ Python interpreters::
     interpreter = /path/to/python, /path/to/other/python
 
 If you pass the ``-3`` flag, the interpreters will be read from the
-``interpreter3`` option.
+``interpreter3`` option. Specifying ``interpreter = None`` you can disable the
+Python tests, which can be useful in setting up a profile just for testing
+docs.
 
 Any of the other options set by commandline parameters can be set in the
 configuration file. See ``sympy-bot --help`` for more information.
