@@ -6,7 +6,7 @@ import sys
 class CmdException(Exception):
     pass
 
-def cmd(s, capture=False, ok_exit_code_list=None, echo=False):
+def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
     """
     Executes the command "s".
 
@@ -16,21 +16,19 @@ def cmd(s, capture=False, ok_exit_code_list=None, echo=False):
     ok_exit_code_list ... a list of ok exit codes (otherwise cmd() raises an
     exception)
     """
-    if ok_exit_code_list is None:
-        ok_exit_code_list = [0]
     if echo:
         print s
     s = os.path.expandvars(s)
     if capture:
-        p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT)
-        output = p.communicate()[0]
-        r = p.returncode
+        out = subprocess.PIPE
     else:
-        output = None
-        r = os.system(s)
+        out = None
+    p = subprocess.Popen(s, shell=True, stdout=out, stderr=subprocess.STDOUT,
+            cwd=cwd)
+    output = p.communicate()[0]
+    r = p.returncode
     if r not in ok_exit_code_list:
-        raise CmdException("Command '%s' failed with err=%d." % (s, r))
+        raise CmdException("Command '%s' failed with err=%d. %s" % (s, r, output))
     return output
 
 def cmd2(cmd):

@@ -104,7 +104,6 @@ def main():
 
     # Initial parse to print help
     options = parser.parse_args()
-    print options
     # Load configuration and set defaults from it
     config = load_config_file(options.profile)
     # Parse args that should be booleans, but come as strings from ConfigParser
@@ -210,7 +209,7 @@ def load_config_file(profile):
 def dispatch_reviews(config, urls, **kwargs):
     username = kwargs.get("username", None)
     password = kwargs.get("password", None)
-    nums = config.n
+    pr_numbers = config.n
     interpreters = config.interpreter
 
     # Check interpreters
@@ -224,75 +223,83 @@ def dispatch_reviews(config, urls, **kwargs):
     print "> Cloning %s master" % config.repository
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
-        cmd("cd %s && git clone --reference %s git://github.com/%s.git" % (tmpdir, reference, config.repository))
+        cmd("git clone --reference %s git://github.com/%s.git" % (reference, config.repository),
+                cwd=tmpdir)
     else:
-        cmd("cd %s && git clone git://github.com/%s.git" % (tmpdir, config.repository))
+        cmd("git clone git://github.com/%s.git" % config.repository,
+                cwd=tmpdir)
 
-    # Open log file
-    log_file = os.path.join("%s" % tmpdir, "out", "log")
-    logdir = os.path.join(tmpdir, "out")
-    os.mkdir(logdir)
-    with open(log_file, "w") as log:
-        # Generate all reviews
-        reviews = {}
-        for n in nums:
-            # Write pull request info
-            pull = github_get_pull_request(urls, n)
-            assert pull["number"] == n
-            print "> Reviewing pull request #%d" % n
-            repo_url = pull["head"]["repo"]["html_url"]
-            repo_url = repo_url.replace(default_protocol, config.protocol)
-            branch = pull["head"]["ref"]
-            user = pull["head"]["user"]
-            user_info = github_get_user_info(urls, username)
-            # TODO: Author broken
-            author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
-                                      user_info.get("email", ""))
-            print "> Pull request info:"
-            print unicode(">     Author: %s" % author).encode('utf8')
-            print ">     Repository: %s" % repo_url
-            print ">     Branch: %s" % branch
+    # Generate all reviews
+    log_dir_base = os.path.join(tmpdir, "out")
+    os.mkdir(log_dir_base)
+    reviews = {}
+    for n in pr_numbers:
+        if len(pr_numbers) == 1:
+            log_dir = log_dir_base
+        else:
+            log_dir = os.path.join(log_dir_base, "pr-%s" % n)
+            os.mkdir(log_dir)
 
-            pull_review = {}
-            # Iterate over interpreters
-            for i in interpreters:
-                # Run tests
-                print "> Testing interpreter %s" % i
-                command = "%s %s" % (i, config.testcommand)
-                repo_path = os.path.join(tmpdir, "sympy")
-                result = run_tests(repo_url, branch, repo_path, command,
-                        python3[i], config.master_commit)
+        # Write pull request info
+        pull = github_get_pull_request(urls, n)
+        assert pull["number"] == n
+        print "> Reviewing pull request #%d" % n
+        repo_url = pull["head"]["repo"]["html_url"]
+        repo_url = repo_url.replace(default_protocol, config.protocol)
+        branch = pull["head"]["ref"]
+        user = pull["head"]["user"]
+        user_info = github_get_user_info(urls, user["login"])
+        author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
+                                  user_info.get("email", ""))
+        print "> Pull request info:"
+        print unicode(">     Author: %s" % author).encode('utf8')
+        print ">     Repository: %s" % repo_url
+        print ">     Branch: %s" % branch
+
+        pull_review = {}
+        # Iterate over interpreters
+        for log_num, i in enumerate(interpreters):
+            log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
+            # Run tests
+            print "> Testing interpreter %s" % i
+            command = "%s %s" % (i, config.testcommand)
+            repo_path = os.path.join(tmpdir, "sympy")
+            result = run_tests(repo_url, branch, repo_path, command,
+                    python3[i], config.master_commit)
+            if result["result"] == "error":
+                print "There was an error. Report not uploaded."
+                sys.exit(1)
+            print "> Done."
+            print
+
+            pull_review[i] = result
+            with open(log_file, "w") as log:
+                log.write(result["log"])
+        if config.build_docs:
+            log_file = os.path.join(log_dir, "docs")
+            print "> Building Sphinx docs"
+            if get_sphinx_version() is None:
+                print "> WARNING: Cannot find sphinx, disabling building HTML docs"
+                if interpreters == []:
+                    print "> No tests to run, exiting"
+                    exit()
+            else:
+                repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
+                result = run_tests(repo_url, branch, repo_path,
+                        config.build_docs_command, False, config.master_commit)
                 if result["result"] == "error":
                     print "There was an error. Report not uploaded."
                     sys.exit(1)
                 print "> Done."
                 print
 
-                pull_review[i] = result
-                log.write(result["log"])
-            if config.build_docs:
-                print "> Building Sphinx docs"
-                if get_sphinx_version() is None:
-                    print "> WARNING: Cannot find sphinx, disabling building HTML docs"
-                    if interpreters == []:
-                        print "> No tests to run, exiting"
-                        exit()
-                else:
-                    repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
-                    result = run_tests(repo_url, branch, repo_path,
-                            config.build_docs_command, False, config.master_commit)
-                    if result["result"] == "error":
-                        print "There was an error. Report not uploaded."
-                        sys.exit(1)
-                    print "> Done."
-                    print
-
-                pull_review["build docs"] = result
+            pull_review["build docs"] = result
+            with open(log_file) as log:
                 log.write(result["log"])
         pull_review["master_hash"] = result["master_hash"]
         pull_review["branch_hash"] = result["branch_hash"]
         reviews[n] = pull_review
-        print "> View log at: %s" % log_file
+        print "> View logs in: %s" % log_dir_base
 
     # Summarize and upload results
     for n, pull_review in reviews.iteritems():
