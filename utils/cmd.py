@@ -70,33 +70,22 @@ def get_interpreter_version_info(interpreter):
 def get_executable(interpreter):
     path = os.environ['PATH']
     paths = path.split(os.pathsep)
+    # Add .exe extension for Windows
     if os.name == "nt":
-        return get_executable_exe(interpreter)
+        interpreter = os.path.splitext(interpreter)[0] + ".exe"
     for p in paths:
         f = os.path.join(p, interpreter)
         if os.path.isfile(f):
             return f
-
-def get_executable_exe(interpreter):
-    """
-    Get python executable path for 'nt'
-    """
-
-    code = "import sys; print(sys.executable)"
-    cmd = '%s -c "%s"' % (interpreter, code)
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT)
-    ouput = p.stdout.read()
-
     return ouput.strip()
 
 def get_platform_version(interpreter):
-    code = 'import sys; print(getattr(sys, "maxint", None))'
-    call = "%s -c '%s'" % (interpreter, code)
+    code = 'import sys; print(getattr(sys, \\"maxint\\", None))'
+    call = '%s -c "%s"' % (interpreter, code)
     size = cmd(call, capture=True)
     if size == 'None\n': # Python 3 doesn't have maxint, 2.5 doesn't have maxsize
         code = 'import sys; print(sys.maxsize)'
-        call = "%s -c '%s'" % (interpreter, code)
+        call = '%s -c "%s"' % (interpreter, code)
         size = cmd(call, capture=True)
     size = int(size)
     if size > 2**32:
