@@ -7,12 +7,13 @@ import ConfigParser
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tempfile import mkdtemp
 
-from utils import (cmd, github_get_pull_request,
-        github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
-        github_add_comment_to_pull_request, list_pull_requests,
-        get_interpreter_version_info, get_interpreter_exe, github_get_user_info)
-from testrunner import run_tests
-from url_templates import URLs
+from utils.cmd import cmd, get_interpreter_version_info, get_platform_version
+from utils.github import (github_add_comment_to_pull_request,
+        github_authenticate, github_get_pull_request, github_get_user_info,
+        github_list_pull_requests)
+from utils.reviews import reviews_sympy_org_upload
+from utils.testrunner import run_tests
+from utils.url_templates import URLs
 
 default_testcommand = "setup.py test"
 default_interpreter = ["python"]
@@ -75,9 +76,6 @@ def main():
     parser_review.add_argument("-r", "--reference", type=str, help="Path to "
         "sympy repository, passed to 'git clone <sympy repo>', setting this "
         "speeds up sympy-bot and decreases network traffic")
-    parser_review.add_argument("--profile", type=str, default="default",
-        help="Configuration file profile to use, see README for information "
-        "about setting up profiles")
     parser_review.add_argument("-m", "--master-commit", type=str,
         default="origin/master", metavar="COMMIT", help="Commit to use as "
         "master for merging, use 'HEAD' to not merge")
@@ -106,6 +104,7 @@ def main():
 
     # Initial parse to print help
     options = parser.parse_args()
+    print options
     # Load configuration and set defaults from it
     config = load_config_file(options.profile)
     # Parse args that should be booleans, but come as strings from ConfigParser
@@ -133,7 +132,7 @@ def main():
     urls = URLs(user=gh_user, repo=gh_repo)
 
     if options.command == "list":
-        list_pull_requests(urls, numbers_only=options.numbers)
+        github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
         # Passed a bare `-i` command
         if options.interpreter == [None]:
@@ -156,19 +155,19 @@ def main():
         if options.n == "mergable":
             print "> Reviewing all *mergeable* pull requests"
             print
-            nonmergeable, mergeable = list_pull_requests(urls, numbers_only=True)
+            nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
             options.n = mergeable
         elif options.n == "all":
             print "> Reviewing *all* pull requests"
             print
-            nonmergeable, mergeable = list_pull_requests(urls, numbers_only=True)
+            nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
             options.n = nonmergeable + mergeable
         else:
             # list of pull request numbers, convert it:
             options.n = map(int, options.n)
 
         if not options.no_upload:
-            username, password = github_authenticate(urls.api_url, config.get("user"), config.get("password"))
+            username, password = github_authenticate(urls, config.get("user"), config.get("password"))
         else:
             username = password = None
 
@@ -238,14 +237,14 @@ def dispatch_reviews(config, urls, **kwargs):
         reviews = {}
         for n in nums:
             # Write pull request info
-            pull = github_get_pull_request(urls.single_pull_template, n)
+            pull = github_get_pull_request(urls, n)
             assert pull["number"] == n
             print "> Reviewing pull request #%d" % n
             repo_url = pull["head"]["repo"]["html_url"]
             repo_url = repo_url.replace(default_protocol, config.protocol)
             branch = pull["head"]["ref"]
             user = pull["head"]["user"]
-            user_info = github_get_user_info(urls.user_info_template, username)
+            user_info = github_get_user_info(urls, username)
             # TODO: Author broken
             author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                       user_info.get("email", ""))
@@ -325,7 +324,7 @@ def dispatch_reviews(config, urls, **kwargs):
         print review
         if not config.no_upload and config.comment:
             print "> Uploading the review to the GitHub pull request ..."
-            github_add_comment_to_pull_request(urls.issue_comment_template, \
+            github_add_comment_to_pull_request(urls, \
                                                username, password, n, review
                                               )
             print ">     Done."
@@ -416,54 +415,6 @@ Test results html report: %s\n""" % (summary, config.build_docs_command, details
 
     report += """\nAutomatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
     return report
-
-def get_executable(interpreter):
-    path = os.environ['PATH']
-    paths = path.split(os.pathsep)
-    interpreter_exe = None
-    if os.name=="nt":
-        return get_interpreter_exe(interpreter)
-    if os.path.isfile(interpreter):
-        return interpreter
-    else:
-        for p in paths:
-            f = os.path.join(p, interpreter)
-            if os.path.isfile(f):
-                return f
-
-def get_platform_version(interpreter):
-    from os import getenv
-    import platform
-    # Python 2.5 doesn't have sys.maxsize
-    code = 'import sys; print(getattr(sys, "maxint", None))'
-    call = "%s -c '%s'" % (interpreter, code)
-    size = cmd(call, capture=True)
-    if size == 'None\n': #Python 3 doesn't have maxint
-        code = 'import sys; print(sys.maxsize)'
-        call = "%s -c '%s'" % (interpreter, code)
-        size = cmd(call, capture=True)
-    size = int(size)
-    if size > 2**32:
-        architecture = "64-bit"
-    else:
-        architecture = "32-bit"
-    platfotm_system = platform.system()
-    use_cache = getenv('SYMPY_USE_CACHE', 'yes').lower()
-    executable = get_executable(interpreter)
-    python_version = get_interpreter_version_info(interpreter)
-    r  = "*Interpreter:*  %s (%s)\n" % (executable, python_version)
-    r += "*Architecture:* %s (%s)\n" % (platfotm_system, architecture)
-    r += "*Cache:*        %s\n" % use_cache
-    return r
-
-def get_sphinx_version():
-    try:
-        import sphinx
-    except ImportError:
-        return
-    version = sphinx.__version__
-    r = "*Sphinx version:* %s" % version
-    return r
 
 if __name__ == "__main__":
     main()

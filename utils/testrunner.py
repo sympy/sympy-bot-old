@@ -2,7 +2,7 @@ import sys
 import re
 import subprocess
 
-from utils import cmd, cmd2, CmdException, get_xpassed_info_from_log
+from utils.cmd import cmd, cmd2, CmdException
 
 def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
         test_command, python3, master_commit):
@@ -60,7 +60,7 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
                 capture=True)
         result["result"] = "conflicts"
         result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
-        cmd("cd %s && git checkout master && git branch -D test" % master_repo_path)
+        cmd("cd %s && git merge --abort && git checkout master && git branch -D test" % master_repo_path)
         return result
     if python3:
         cmd("cd %s && python bin/use2to3" % master_repo_path)
@@ -79,3 +79,11 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
     else:
         result["result"] = "Failed"
     return result
+
+def get_xpassed_info_from_log(log):
+    re_xpassed = re.compile("\s+_+\s+xpassed tests\s+_+\s+(?P<xpassed>([^\n]+\n)+)\n", re.M)
+    m = re_xpassed.search(log)
+    if m:
+        lines = m.group('xpassed')
+        return lines.splitlines()
+    return []
