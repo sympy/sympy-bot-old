@@ -81,7 +81,7 @@ class MainPage(RequestHandler):
         p_mergeable.filter("state =", "open")
         p_mergeable.order("-created_at")
         p_nonmergeable = PullRequest.all()
-        p_nonmergeable.filter("mergeable IN", [False, None])
+        p_nonmergeable.filter("mergeable IN", False)
         p_nonmergeable.filter("state =", "open")
         p_nonmergeable.order("-created_at")
         self.render("index.html", {

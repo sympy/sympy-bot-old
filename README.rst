@@ -109,7 +109,7 @@ To use that feature you need to follow these steps:
 
 1. Go to ``http://example.com/upload_pull``, sign in as administrator and press
    ``generate`` button. After that, all admins will recieve notification with
-   secret URL(you can see a log of all generations in table on that page)
+   secret URL (you can see a log of all generations in table on that page)
 2. You need to tell github to use this URL, so here steps (replace ``username``
    and ``repo`` with you values):
         - Go to https://github.com/user/repo/admin/hooks
