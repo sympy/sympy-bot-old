@@ -7,7 +7,8 @@ import ConfigParser
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tempfile import mkdtemp
 
-from utils.cmd import cmd, get_interpreter_version_info, get_platform_version
+from utils.cmd import (cmd, get_interpreter_version_info, get_platform_version,
+        get_sphinx_version)
 from utils.github import (github_add_comment_to_pull_request,
         github_authenticate, github_get_pull_request, github_get_user_info,
         github_list_pull_requests)
@@ -16,6 +17,7 @@ from utils.testrunner import run_tests
 from utils.url_templates import URLs
 
 default_testcommand = "setup.py test"
+default_build_docs_command = "make html-errors"
 default_interpreter = ["python"]
 default_interpreter3 = ["python3"]
 default_protocol = "https"
@@ -69,7 +71,7 @@ def main():
         "argument of `python`, add '-V;' to the beginning of the option, for "
         "example '-V; mycommand'")
     parser_review.add_argument("--build-docs-command", type=str,
-        default="make html-errors", metavar="COMMAND", help="Command run to "
+        default=default_build_docs_command, metavar="COMMAND", help="Command run to "
         "build the Sphinx docs")
     parser_review.add_argument("--build-docs-dir", type=str, default="doc",
         metavar="DIR", help="Directory in which to build the Sphinx docs")
@@ -108,14 +110,13 @@ def main():
     config = load_config_file(options.profile)
     # Parse args that should be booleans, but come as strings from ConfigParser
     for i in ("build_docs", "no_comment", "no_upload", "python3"):
-        if i in config:
-            if isinstance(config[i], str):
-                if config[i].strip().lower() in ("true", "y", "yes"):
-                    config[i] = True
-                elif config[i].strip().lower() in ("false", "n", "no"):
-                    config[i] = False
-                else:
-                    raise ConfigParser.Error("Unable to parse boolean configuration value for %s" % i)
+        if i in config and isinstance(config[i], str):
+            if config[i].strip().lower() in ("true", "y", "yes"):
+                config[i] = True
+            elif config[i].strip().lower() in ("false", "n", "no"):
+                config[i] = False
+            else:
+                raise ConfigParser.Error("Unable to parse boolean configuration value for %s" % i)
     # If interpreter is set in config file, force tests to run
     parser.set_defaults(interpreter=None)
     if "interpreter" in config:
@@ -247,19 +248,19 @@ def dispatch_reviews(config, urls, **kwargs):
         repo_url = pull["head"]["repo"]["html_url"]
         repo_url = repo_url.replace(default_protocol, config.protocol)
         branch = pull["head"]["ref"]
-        user = pull["head"]["user"]
-        user_info = github_get_user_info(urls, user["login"])
+        user = pull["head"]["user"].get("login")
+        user_info = github_get_user_info(urls, user)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
         print "> Pull request info:"
         print unicode(">     Author: %s" % author).encode('utf8')
         print ">     Repository: %s" % repo_url
         print ">     Branch: %s" % branch
+        del pull
 
         pull_review = {}
         # Iterate over interpreters
         for log_num, i in enumerate(interpreters):
-            log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
             # Run tests
             print "> Testing interpreter %s" % i
             command = "%s %s" % (i, config.testcommand)
@@ -270,13 +271,43 @@ def dispatch_reviews(config, urls, **kwargs):
                 print "There was an error. Report not uploaded."
                 sys.exit(1)
             print "> Done."
-            print
 
-            pull_review[i] = result
+            # Log results
+            log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
             with open(log_file, "w") as log:
                 log.write(result["log"])
+            print "> Results logged to %s" % log_file
+
+            # Upload results
+            if not config.no_upload:
+                print "> Uploading test results"
+                url_base = config.server
+                data = {
+                    "num" : n,
+                    "result" : result["result"],
+                    "interpreter": i,
+                    "log": result["log"],
+                    "testcommand": config.testcommand,
+                    "master_hash": result["master_hash"],
+                    "branch_hash": result["branch_hash"],
+                }
+                report_url = reviews_sympy_org_upload(data, url_base)
+                print "> Uploaded report for '%s' at: %s" % (i, report_url)
+            else:
+                report_url = "(report was not uploaded)"
+
+            pull_review[i] = {
+                "result" : result["result"],
+                "xpassed" : result["xpassed"],
+                "master_hash" : result["master_hash"],
+                "branch_hash" : result["branch_hash"],
+                "url" : report_url
+            }
+            del result
+            print
+
         if config.build_docs:
-            log_file = os.path.join(log_dir, "docs")
+            # Run tests
             print "> Building Sphinx docs"
             if get_sphinx_version() is None:
                 print "> WARNING: Cannot find sphinx, disabling building HTML docs"
@@ -291,59 +322,74 @@ def dispatch_reviews(config, urls, **kwargs):
                     print "There was an error. Report not uploaded."
                     sys.exit(1)
                 print "> Done."
-                print
 
-            pull_review["build docs"] = result
-            with open(log_file) as log:
+            # Log results
+            log_file = os.path.join(log_dir, "docs")
+            with open(log_file, "w") as log:
                 log.write(result["log"])
-        pull_review["master_hash"] = result["master_hash"]
-        pull_review["branch_hash"] = result["branch_hash"]
-        reviews[n] = pull_review
-        print "> View logs in: %s" % log_dir_base
+            print "> Results logged to %s" % log_file
 
-    # Summarize and upload results
+            # Upload results
+            if not config.no_upload:
+                print "> Uploading test results"
+                url_base = config.server
+                data = {
+                    "num" : n,
+                    "result" : result["result"],
+                    "interpreter": i,
+                    "log": result["log"],
+                    "testcommand": config.build_docs_command,
+                    "master_hash": result["master_hash"],
+                    "branch_hash": result["branch_hash"],
+                }
+                report_url = reviews_sympy_org_upload(data, url_base)
+                print "> Uploaded report for building docs at: %s" % report_url
+            else:
+                report_url = "(report was not uploaded)"
+
+            pull_review["build_docs"] = {
+                "result" : result["result"],
+                "xpassed" : result["xpassed"],
+                "master_hash" : result["master_hash"],
+                "branch_hash" : result["branch_hash"],
+                "url" : report_url
+            }
+            del result
+            print
+        reviews[n] = pull_review
+        print "> View logs for PR %d in: %s" % (n, log_dir_base)
+
+    # Summarize and comment
     for n, pull_review in reviews.iteritems():
-        master_hash = pull_review.pop("master_hash")
-        branch_hash = pull_review.pop("branch_hash")
+        report_url = dict([(i, result["url"]) for i, result in pull_review.iteritems()])
         report_status = dict([(i, result["result"]) for i, result in pull_review.iteritems()])
         xpassed = dict([(i, result["xpassed"]) for i, result in pull_review.iteritems()])
+        master_hash = dict([(i, result["master_hash"]) for i, result in pull_review.iteritems()])
+        branch_hash = dict([(i, result["branch_hash"]) for i, result in pull_review.iteritems()])
 
-        if not config.no_upload:
-            print "> Uploading test results for pull number %d" % n
-            url_base = config.server
-            data = dict([(i, {
-                "num" : n,
-                "result" : report_status[i],
-                "interpreter": i,
-                "log": pull_review[i]["log"],
-                "testcommand": config.testcommand,
-                "master_hash": master_hash,
-                "branch_hash": branch_hash,
-            }) for i in pull_review.iterkeys()])
-            report_url = dict([(i, reviews_sympy_org_upload(data[i], url_base)) for i in pull_review.iterkeys()])
-            for i, url in report_url.iteritems():
-                print "> Uploaded report for '%s' at: %s" % (i, url)
-        else:
-            report_url = dict([(i, "(report was not uploaded)") for i in pull_review.iterkeys()])
-        review = formulate_review(report_url, report_status, xpassed,
-                master_hash, branch_hash, user, config)
+        # Generate summary
+        review = formulate_review(report_status, report_url, master_hash,
+                branch_hash, config.interpreter, config.testcommand,
+                config.build_docs, config.build_docs_command, user)
+
         print "> Review:"
         print review
+        print
+
+        # Comment to GitHub
         if not config.no_upload and config.comment:
             print "> Uploading the review to the GitHub pull request ..."
-            github_add_comment_to_pull_request(urls, \
-                                               username, password, n, review
-                                              )
+            github_add_comment_to_pull_request(urls, username, password, n,
+                    review)
             print ">     Done."
             print "> Check the results: https://github.com/%s/pull/%d" % (config.repository, n)
 
-def formulate_review(report_url, report_status, xpassed, master_hash, branch_hash, user, config):
-    user = user.get("login", None)
-
+def formulate_review(report_status, report_url, master_hash, branch_hash, interpreter, testcommand, build_docs, build_docs_command, user):
     if user:
         atuser = "@"+user+": "
     else:
         atuser = ""
+
     if any([status == "conflicts" for status in report_status.itervalues()]):
         summary = """:exclamation: There were merge conflicts; could not test the branch.
 
@@ -362,25 +408,10 @@ See the report for a list of the merge conflicts.""" % atuser
     else:
         raise ValueError("Unknown report_status")
 
-    if config.testcommand != default_testcommand:
-        bold = "**"
-    else:
-        bold = ""
-    details = """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
-    details += """*master hash*: %s\n""" % master_hash
-    details += """*branch hash*: %s\n""" % branch_hash
 
-    if len(config.interpreter) == 0:
-        report = """\
-**SymPy Bot Summary:** %s\n""" % summary
-    else:
-        report = """\
-**SymPy Bot Summary:** %s
+    report = """**SymPy Bot Summary:** %s\n\n""" % summary
 
-%s""" %  (summary, details)
-
-    for n, i in enumerate(config.interpreter, start=1):
-        details = get_platform_version(i)
+    for n, i in enumerate(interpreter, start=1):
         status = report_status[i]
         if status == "conflicts":
             summary = """:exclamation: There were merge conflicts; could not test the branch."""
@@ -393,15 +424,22 @@ See the report for a list of the merge conflicts.""" % atuser
         else:
             raise ValueError("Unknown report_status")
 
-        if len(config.interpreter) > 1:
-            report += """\n**Interpreter %d:** %s\n\n""" % (n, summary)
-        report += """%s
-Test results html report: %s\n""" % (details, report_url[i])
+        details = get_platform_version(i)
+        if testcommand != default_testcommand:
+            bold = "**"
+        else:
+            bold = ""
+        details += """*Test command:* %s%s%s\n""" % (bold, testcommand, bold)
+        details += """*master hash*: %s\n""" % master_hash[i]
+        details += """*branch hash*: %s\n""" % branch_hash[i]
 
+        if len(interpreter) > 1:
+            report += """**Interpreter %d:** %s\n\n""" % (n, summary)
+        report += "%s\n" % details
+        report += """Test results html report: %s\n\n""" % report_url[i]
 
-    if config.build_docs:
-        details = get_sphinx_version()
-        status = report_status["build docs"]
+    if build_docs:
+        status = report_status["build_docs"]
         if status == "conflicts":
             summary = """:exclamation: There were merge conflicts; could not test the branch."""
         elif status == "fetch":
@@ -413,14 +451,20 @@ Test results html report: %s\n""" % (details, report_url[i])
         else:
             raise ValueError("Unknown report_status")
 
-        report += """\n**Build HTML Docs:** %s
+        details = get_sphinx_version()
+        if build_docs_command != default_build_docs_command:
+            bold = "**"
+        else:
+            bold = ""
+        details += """*Docs build command:* %s%s%s\n""" % (bold, build_docs_command, bold)
+        details += """*master hash*: %s\n""" % master_hash["build_docs"]
+        details += """*branch hash*: %s\n""" % branch_hash["build_docs"]
 
-*Docs build command:* %s
-%s
+        report += """**Build HTML Docs:** %s\n\n""" % summary
+        report += """%s\n""" % details
+        report += """Test results html report: %s\n\n""" % report_url["build_docs"]
 
-Test results html report: %s\n""" % (summary, config.build_docs_command, details, report_url["build docs"], )
-
-    report += """\nAutomatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
+    report += """Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
     return report
 
 if __name__ == "__main__":

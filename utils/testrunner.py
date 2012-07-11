@@ -1,3 +1,4 @@
+import os
 import sys
 import re
 import subprocess
@@ -36,44 +37,42 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
             "branch_hash": "",
         }
     try:
-        cmd("cd %s && git fetch %s %s:test" % (master_repo_path,
-            pull_request_repo_url, pull_request_branch), echo=True)
+        cmd("git fetch %s %s:test" % (pull_request_repo_url,
+            pull_request_branch), echo=True, cwd=master_repo_path)
     except CmdException:
         result["result"] = "fetch"
         return result
-    cmd("cd %s && git checkout test" % master_repo_path, echo=True)
+    cmd("git checkout test", echo=True, cwd=master_repo_path)
     # remember the hashes before the merge occurs:
     try:
-        result["master_hash"] = cmd("cd %s && git rev-parse %s" % (master_repo_path,
-            master_commit), capture=True).strip()
+        result["master_hash"] = cmd("git rev-parse %s" % master_commit,
+                capture=True, cwd=master_repo_path).strip()
     except CmdException:
         print "Could not parse commit %s." % master_commit
         result["result"]= "error"
         return result
-    result["branch_hash"] = cmd("cd %s && git rev-parse test" % master_repo_path,
-            capture=True).strip()
+    result["branch_hash"] = cmd("git rev-parse test", capture=True,
+            cwd=master_repo_path).strip()
 
-    merge_log, r = cmd2("cd %s && git merge %s" % (master_repo_path,
-        master_commit))
+    merge_log, r = cmd2("git merge %s" % master_commit, cwd=master_repo_path)
     if r != 0:
-        conflicts = cmd("cd %s && git --no-pager diff" % master_repo_path,
-                capture=True)
+        conflicts = cmd("git --no-pager diff", capture=True,
+                cwd=master_repo_path)
         result["result"] = "conflicts"
         result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
-        cmd("cd %s && git merge --abort && git checkout master && git branch -D test" % master_repo_path)
+        cmd("git merge --abort && git checkout master && git branch -D test", cwd=master_repo_path)
         return result
     if python3:
-        cmd("cd %s && python bin/use2to3" % master_repo_path)
-        master_repo_path = master_repo_path + "/py3k-sympy"
-    log, r = cmd2("cd %s && %s" % (master_repo_path,
-        test_command))
-    cmd("cd %s && git checkout master && git branch -D test" % master_repo_path)
+        use2to3 = os.path.join("bin", "use2to3")
+        cmd("python %s" % use2to3, cwd=master_repo_path)
+        master_repo_path = os.path.join(master_repo_path, "py3k-sympy")
+    log, r = cmd2(test_command, cwd=master_repo_path)
+    cmd("git checkout master && git branch -D test", cwd=master_repo_path)
     result["log"] = log
     result["return_code"] = r
 
-
     result["xpassed"] = get_xpassed_info_from_log(log)
-    print "Return code:", r
+    print "Return code: ", r
     if r == 0:
         result["result"] = "Passed"
     else:

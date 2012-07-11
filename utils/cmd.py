@@ -31,7 +31,7 @@ def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
         raise CmdException("Command '%s' failed with err=%d. %s" % (s, r, output))
     return output
 
-def cmd2(cmd):
+def cmd2(cmd, cwd=None):
     """
     Runs the command "cmd", mirrors everything on the screen and returns a log
     as well as the return code.
@@ -39,7 +39,7 @@ def cmd2(cmd):
     print "Running unit tests."
     print "Command:", cmd
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT)
+            stderr=subprocess.STDOUT, cwd=cwd)
 
     log = ""
     while True:
@@ -118,5 +118,5 @@ def get_sphinx_version():
     except ImportError:
         return
     version = sphinx.__version__
-    r = "*Sphinx version:* %s" % version
+    r = "*Sphinx version:* %s\n" % version
     return r
