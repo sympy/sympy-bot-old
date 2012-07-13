@@ -46,7 +46,9 @@ These pull requests apply cleanly over master.
     {% for p in pullrequests_mergeable %}
         <tr>
             <td><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></td>
-            <td>{{ p.author.name }}</td>
+            <td>
+            <a href="https://github.com/{{ p.author.login }}">{{ p.author.login }}</a>
+            </td>
             <td>{{ p.created_at|date:"r" }}</td>
             <td>{{ p.title }}</td>
         </tr>
@@ -71,7 +73,9 @@ These pull requests have to be rebased first.
     {% for p in pullrequests_nonmergeable %}
         <tr>
             <td><a href="/pullrequest/{{ p.num }}/">#{{ p.num }}</a></td>
-            <td>{{ p.author.name }}</td>
+            <td>
+            <a href="https://github.com/{{ p.author.login }}">{{ p.author.login }}</a>
+            </td>
             <td>{{ p.created_at|date:"r" }}</td>
             <td>{{ p.title }}</td>
         </tr>

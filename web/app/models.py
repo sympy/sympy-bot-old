@@ -5,8 +5,6 @@ class User(db.Model):
     id = db.IntegerProperty()
     url = db.StringProperty()
     avatar_url = db.StringProperty()
-    name = db.StringProperty()
-    email = db.StringProperty()
 
 class PullRequest(db.Model):
     num = db.IntegerProperty(required=True)
@@ -28,3 +26,8 @@ class Task(db.Model):
     interpreter = db.StringProperty()
     testcommand = db.StringProperty()
     uploaded_at = db.DateTimeProperty(auto_now_add=True)
+
+class UploadURL(db.Model):
+    url_path = db.StringProperty()
+    user = db.StringProperty()
+    created_at = db.DateTimeProperty(auto_now_add=True)
