@@ -1,16 +1,10 @@
 application: sympy3
-version: 4
+version: 5
 runtime: python
 api_version: 1
 
 handlers:
 - url: /static
   static_dir: static
-- url: /quickupdate
-  script: main.py
-  login: admin
-- url: /update
-  script: main.py
-  login: admin
 - url: /.*
   script: main.py
