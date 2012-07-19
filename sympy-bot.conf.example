@@ -17,4 +17,4 @@ interpreter = None
 
 [slow-tests]
 interpreter = /path/to/python2.5, /path/to/python3.2
-testcommand = bin/test --slow
+testcommand = bin/test --slow --timeout 1000
