@@ -188,10 +188,10 @@ def load_config_file(profile):
         with open(conf_file) as f:
             try:
                 parser.readfp(f)
-            except IOError:
-                print "> WARNING: Unable to open config file"
-            except ConfigParser.Error:
-                print "> WARNING: Unable to parse config file"
+            except IOError as e:
+                print "> WARNING: Unable to open config file:", e
+            except ConfigParser.Error as e:
+                print "> WARNING: Unable to parse config file:", e
             finally:
                 print "> Loaded configuration file"
 
