@@ -336,7 +336,7 @@ def dispatch_reviews(config, urls, **kwargs):
                 data = {
                     "num" : n,
                     "result" : result["result"],
-                    "interpreter": i,
+                    "interpreter": "None",
                     "log": result["log"],
                     "testcommand": config.build_docs_command,
                     "master_hash": result["master_hash"],
