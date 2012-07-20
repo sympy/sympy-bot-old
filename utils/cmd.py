@@ -73,11 +73,12 @@ def get_executable(interpreter):
     # Add .exe extension for Windows
     if os.name == "nt":
         interpreter = os.path.splitext(interpreter)[0] + ".exe"
+    if os.path.isfile(interpreter)
+        return interpreter
     for p in paths:
         f = os.path.join(p, interpreter)
         if os.path.isfile(f):
             return f
-    return ouput.strip()
 
 def get_platform_version(interpreter):
     code = 'import sys; print(getattr(sys, \\"maxint\\", None))'

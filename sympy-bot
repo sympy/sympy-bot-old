@@ -192,7 +192,7 @@ def load_config_file(profile):
                 print "> WARNING: Unable to open config file:", e
             except ConfigParser.Error as e:
                 print "> WARNING: Unable to parse config file:", e
-            finally:
+            else:
                 print "> Loaded configuration file"
 
                 if parser.has_section("default"):

@@ -80,7 +80,7 @@ docs.
 Any of the other options set by commandline parameters can be set in the
 configuration file. See ``sympy-bot review --help`` for more information (the
 configuration values are the long form of the option, with any dashes replaced
-with underscores, for example, ``--build-docs`` becomes ``build_docs``.
+with underscores, for example, ``--build-docs`` becomes ``build_docs``).
 
 The configuration also supports different profiles. To set these up, you put
 the name of the profile between square brackets. Then, when you pass
