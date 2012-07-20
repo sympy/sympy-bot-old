@@ -19,10 +19,14 @@ reference = ~/sympy
 [full-tests]
 interpreter = %(defaultpath)s/python2.6, %(defaultpath)s/python2.7
 interpreter3 = %(defaultpath)s/python3.2
+python2 = True
+python3 = True
 
 [full-tests-docs]
 interpreter = %(defaultpath)s/python2.6, %(defaultpath)s/python2.7
 interpreter3 = %(defaultpath)s/python3.2
+python2 = True
+python3 = True
 build_docs = True
 
 [docs]

@@ -53,9 +53,15 @@ def main():
         "about setting up profiles")
     parser_review.add_argument("-n", "--no-upload", action="store_true",
         help="Do not upload the review to the server")
+    parser_review.add_argument("-2", "--python2", action="store_true",
+        help="Run the tests with the interpreters specified by the "
+        "`interpreter` configuration file option, which in `python` by "
+        "default, this is the default behavior, but is necessary to run these "
+        "interpreters when Python 3 tests are run or the docs are built")
     parser_review.add_argument("-3", "--python3", action="store_true",
-        help="Force use of Python 3.x, changes default interpreter to "
-        "python3")
+        help="Run the tests with the interpreters specified by the "
+        "`interpreter3` configuration file option, which is `python3` by "
+        "default")
     parser_review.add_argument("-D", "--build-docs", action="store_true",
         help="Test the building of the Sphinx HTML documentation")
     parser_review.add_argument("--no-comment", dest="comment",
@@ -109,7 +115,7 @@ def main():
     # Load configuration and set defaults from it
     config = load_config_file(options.profile)
     # Parse args that should be booleans, but come as strings from ConfigParser
-    for i in ("build_docs", "no_comment", "no_upload", "python3"):
+    for i in ("build_docs", "no_comment", "no_upload", "python2", "python3"):
         if i in config and isinstance(config[i], str):
             if config[i].strip().lower() in ("true", "y", "yes"):
                 config[i] = True
@@ -134,23 +140,26 @@ def main():
     if options.command == "list":
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
-        # Passed a bare `-i` command
-        if options.interpreter == [None]:
-            if options.python3:
-                options.interpreter = default_interpreter3
-            else:
-                options.interpreter = default_interpreter
+        # Use `interpreter` if python2 set
+        if options.python2:
+            interpreter = default_interpreter
         # No command line interpreter
-        elif options.interpreter is None:
-            # -D with no -i and no -3 runs with no interpreters
-            if options.build_docs and not options.python3:
-                options.interpreter = []
-            elif options.python3:
-                options.interpreter = default_interpreter3
+        elif options.interpreter == [None]:
+            # If building docs or python3 set, don't run `interpreter`
+            if options.build_docs or options.python3:
+                interpreter = []
             else:
-                options.interpreter = default_interpreter
-        if options.interpreter == ["None"]:
-            options.interpreter = []
+                interpreter = default_interpreter
+        # Force no `interpreter`
+        elif options.interpreter == ["None"]:
+            interpreter = []
+        else:
+            interpreter = default_interpreter
+
+        if options.python3:
+            interpreter += default_interpreter3
+
+        options.interpreter = interpreter
 
         if options.n == "mergable":
             print "> Reviewing all *mergeable* pull requests"
@@ -213,13 +222,10 @@ def load_config_file(profile):
 def dispatch_reviews(config, urls, **kwargs):
     username = kwargs.get("username", None)
     password = kwargs.get("password", None)
+
     pr_numbers = config.n
     interpreters = config.interpreter
-
-    # Check interpreters
     python3 = dict( [(i, get_interpreter_version_info(i)[0] == '3') for i in interpreters] )
-    if config.python3 and not all(python3.itervalues()):
-        raise ValueError("Python 2 interpreter passed with -3 option")
 
     tmpdir = mkdtemp(prefix="sympy-bot-tmp")
     print "> Working directory: %s" % tmpdir

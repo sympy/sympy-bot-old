@@ -71,11 +71,20 @@ You can specify the interpreters to use by giving a comma separated list of
 Python interpreters::
 
     interpreter = /path/to/python, /path/to/other/python
+    interpreter3 = /path/to/python3, /path/to/other/python3
 
-If you pass the ``-3`` flag, the interpreters will be read from the
-``interpreter3`` option. Specifying ``interpreter = None`` you can disable the
-Python tests, which can be useful in setting up a profile just for testing
-docs.
+which sets the Python 2 and Python 3 interpreters, respectively. By default,
+the interpreters set by ``interpreter`` are run. If you pass the ``-3`` flag or
+set ``python3 = True`` in the configuration file, then ``interpreter3`` will be
+used instead. You can force both by passing ``-2`` and ``-3`` or setting both
+``python2 = True`` and ``python3 = True`` in the configuration file. Setting
+``interpreter = None`` will disable the Python tests, which can be useful in
+setting up a profile just for testing docs.
+
+If you want to test the building of the HTML docs, you can use the ``-D`` flag
+or set ``build_docs = True`` in the configuration file. By default, this will
+disable running the tests. This can be overridden by setting ``python2`` or
+``python3`` options, as above.
 
 Any of the other options set by commandline parameters can be set in the
 configuration file. See ``sympy-bot review --help`` for more information (the
