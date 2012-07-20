@@ -33,7 +33,7 @@ Requirements
 ------------
 
 SymPy bot needs argparse to run. This is part of the standard library in
-Python 2.7 and 3.2, however it can be installed in earlier versions of Python.
+Python 2.7, however it can be installed in earlier versions of Python.
 
 Tips
 ----
@@ -78,7 +78,9 @@ Python tests, which can be useful in setting up a profile just for testing
 docs.
 
 Any of the other options set by commandline parameters can be set in the
-configuration file. See ``sympy-bot --help`` for more information.
+configuration file. See ``sympy-bot review --help`` for more information (the
+configuration values are the long form of the option, with any dashes replaced
+with underscores, for example, ``--build-docs`` becomes ``build_docs``.
 
 The configuration also supports different profiles. To set these up, you put
 the name of the profile between square brackets. Then, when you pass
@@ -92,7 +94,9 @@ the default section. This is done in the config file::
 This can be useful for setting up various suites of tests, e.g. slow tests,
 32-bit/64-bit tests, etc.
 
-To see an example configuration file, see the ``sympy-bot.conf.example`` file.
+To see an example configuration file, see the ``sympy-bot.conf.example``
+file.  This file also explains how you can use variable interpolation to avoid
+duplication.
 
 Foreign repositories
 --------------------
