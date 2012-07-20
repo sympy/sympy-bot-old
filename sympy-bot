@@ -195,14 +195,16 @@ def load_config_file(profile):
             finally:
                 print "> Loaded configuration file"
 
+                if parser.has_section("default"):
+                    default_items = dict(parser.items("default", raw=True))
+                else:
+                    default_items = {}
+
                 if parser.has_section(profile):
-                    items = dict(parser.items(profile))
+                    items = dict(parser.items(profile, vars=default_items))
                 else:
                     print "> WARNING: Configuration file does not contain profile %s" % profile
-                    items = {}
-
-                if profile != "default" and parser.has_section("default"):
-                    items = dict(parser.items("default", vars=items))
+                    items = default_items
 
                 return items
     return {}
