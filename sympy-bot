@@ -123,11 +123,10 @@ def main():
                 config[i] = False
             else:
                 raise ConfigParser.Error("Unable to parse boolean configuration value for %s" % i)
-    # If interpreter is set in config file, force tests to run
+    # If interpreter/interpreter3 is set in config file, use them as the default
     parser.set_defaults(interpreter=None)
     if "interpreter" in config:
         default_interpreter = [i.strip() for i in config.pop("interpreter").split(",")]
-        parser.set_defaults(interpreter=[None])
     if "interpreter3" in config:
         default_interpreter3 = [i.strip() for i in config.pop("interpreter3").split(",")]
     parser.set_defaults(**config)
@@ -140,24 +139,26 @@ def main():
     if options.command == "list":
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
-        # Use `interpreter` if python2 set
+        interpreter = []
+        default = True
+        # Command line `-i`
+        if options.interpreter is not None:
+            interpreter += options.interpreter
+            default = False
+        # Command line `-2`/config file `python2`
         if options.python2:
-            interpreter = default_interpreter
-        # No command line interpreter
-        elif options.interpreter == [None]:
-            # If building docs or python3 set, don't run `interpreter`
-            if options.build_docs or options.python3:
-                interpreter = []
-            else:
-                interpreter = default_interpreter
-        # Force no `interpreter`
-        elif options.interpreter == ["None"]:
-            interpreter = []
-        else:
-            interpreter = default_interpreter
-
+            interpreter += default_interpreter
+            default = False
+        # Command line `-3`/config file `python3`
         if options.python3:
             interpreter += default_interpreter3
+            default = False
+        # Build docs disables default
+        if options.build_docs:
+            default = False
+        # None specified, then use default
+        if default:
+            interpreter = default_interpreter
 
         options.interpreter = interpreter
 
@@ -268,6 +269,7 @@ def dispatch_reviews(config, urls, **kwargs):
         del pull
 
         pull_review = {}
+
         # Iterate over interpreters
         for log_num, i in enumerate(interpreters):
             # Run tests
@@ -277,7 +279,7 @@ def dispatch_reviews(config, urls, **kwargs):
             result = run_tests(repo_url, branch, repo_path, command,
                     python3[i], config.master_commit)
             if result["result"] == "error":
-                print "There was an error. Report not uploaded."
+                print "> There was an error. Report not uploaded."
                 sys.exit(1)
             print "> Done."
 
