@@ -4,7 +4,7 @@ import sys
 import os
 import ConfigParser
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, ArgumentTypeError
 from tempfile import mkdtemp
 
 from utils.cmd import (cmd, get_interpreter_version_info, get_platform_version,
@@ -53,23 +53,27 @@ def main():
         "about setting up profiles")
     parser_review.add_argument("-n", "--no-upload", action="store_true",
         help="Do not upload the review to the server")
-    parser_review.add_argument("-2", "--python2", action="store_true",
-        help="Run the tests with the interpreters specified by the "
-        "`interpreter` configuration file option, which in `python` by "
-        "default, this is the default behavior, but is necessary to run these "
-        "interpreters when Python 3 tests are run or the docs are built")
-    parser_review.add_argument("-3", "--python3", action="store_true",
-        help="Run the tests with the interpreters specified by the "
-        "`interpreter3` configuration file option, which is `python3` by "
-        "default")
-    parser_review.add_argument("-D", "--build-docs", action="store_true",
-        help="Test the building of the Sphinx HTML documentation")
+    parser_review.add_argument("-2", "--python2", nargs="?", const=True,
+        default=None, help="Run the tests with the interpreters specified "
+        "by the `interpreter` option, this is the default behavior, but it "
+        "must be called explicitly to run these interpreters when Python 3 "
+        "tests are run or the docs are built")
+    parser_review.add_argument("-3", "--python3", nargs="?", const=True,
+        default=False, help="Run the tests with the interpreters specified "
+        "by the `interpreter3` configuration file option, which is `python3` "
+        "by default")
+    parser_review.add_argument("-D", "--build-docs", nargs="?", const=True,
+        default=False, help="Test the building of the Sphinx HTML "
+        "documentation")
     parser_review.add_argument("--no-comment", dest="comment",
         action="store_false", help="Upload review but do not submit summary "
         "comment to pull request on GitHub")
     parser_review.add_argument("-i", "--interpreter", action="append",
-        nargs="?", type=str, default=default_interpreter, help="Python "
-        "interpreter used run tests")
+        type=str, default=default_interpreter, help="Python interpreter used "
+        "to run tests")
+    parser_review.add_argument("--interpreter3", action="append", type=str,
+        default=default_interpreter3, help="Python 3 interpreter used to run "
+        "tests")
     parser_review.add_argument("-t", "--testcommand", type=str,
         default=default_testcommand, metavar="COMMAND", help="Command, run as "
         "an argument of `python`, used to execute tests, allowing the use of "
@@ -117,21 +121,41 @@ def main():
     # Parse args that should be booleans, but come as strings from ConfigParser
     for i in ("build_docs", "no_comment", "no_upload", "python2", "python3"):
         if i in config and isinstance(config[i], str):
-            if config[i].strip().lower() in ("true", "y", "yes"):
+            val = config[i].strip()
+            if val.lower() in ("true", "y", "yes"):
                 config[i] = True
-            elif config[i].strip().lower() in ("false", "n", "no"):
+            elif val.lower() in ("false", "n", "no"):
                 config[i] = False
             else:
-                raise ConfigParser.Error("Unable to parse boolean configuration value for %s" % i)
+                raise ConfigParser.Error("Unable to parse boolean configuration value for %s: %s" % (i, val))
     # If interpreter/interpreter3 is set in config file, use them as the default
     parser.set_defaults(interpreter=None)
+    parser.set_defaults(interpreter3=None)
     if "interpreter" in config:
-        default_interpreter = [i.strip() for i in config.pop("interpreter").split(",")]
+        interp = config["interpreter"]
+        if interp.strip().lower() == "none":
+            config["interpreter"] = []
+        else:
+            config["interpreter"] = [i.strip() for i in interp.split(",")]
     if "interpreter3" in config:
-        default_interpreter3 = [i.strip() for i in config.pop("interpreter3").split(",")]
+        interp = config.pop("interpreter3")
+        if interp.strip().lower() == "none":
+            config["interpreter3"] = []
+        else:
+            config["interpreter3"] = [i.strip() for i in interp.split(",")]
     parser.set_defaults(**config)
     # Parse args
     options = parser.parse_args()
+    for i in ("build_docs", "comment", "no_upload", "python2", "python3"):
+        val = getattr(options, i)
+        if isinstance(val, str):
+            val = val.strip()
+            if val.lower() in ("true", "y", "yes"):
+                setattr(options, i, True)
+            elif val.lower() in ("false", "n", "no"):
+                setattr(options, i, False)
+            else:
+                raise ArgumentTypeError("Unable to parse boolean configuration value for %s: %s" % (i, val))
 
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
@@ -139,26 +163,22 @@ def main():
     if options.command == "list":
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
-        interpreter = []
-        default = True
-        # Command line `-i`
-        if options.interpreter is not None:
-            interpreter += options.interpreter
-            default = False
+        # No interpreter/interpreter3 set
+        if options.interpreter is None:
+            options.interpreter = default_interpreter
+        if options.interpreter3 is None:
+            options.interpreter3 = default_interpreter3
+        # Nothing specified, then use default
+        if options.python2 is None and not options.python3 and not options.build_docs:
+            interpreter = options.interpreter
+        else:
+            interpreter = []
         # Command line `-2`/config file `python2`
         if options.python2:
-            interpreter += default_interpreter
-            default = False
+            interpreter += options.interpreter
         # Command line `-3`/config file `python3`
         if options.python3:
-            interpreter += default_interpreter3
-            default = False
-        # Build docs disables default
-        if options.build_docs:
-            default = False
-        # None specified, then use default
-        if default:
-            interpreter = default_interpreter
+            interpreter += options.interpreter3
 
         options.interpreter = interpreter
 
