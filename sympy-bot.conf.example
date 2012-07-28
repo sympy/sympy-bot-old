@@ -1,0 +1,39 @@
+[default]
+# Configuration files can have comments (and line starting with # or ; is
+# ignored).
+
+# Configuration files support string interpolation, which can help to avoid
+# typing the same thing multiple times.  If you have something like
+defaultpath = /path/to
+# Then the variable
+interpreter = %(defaultpath)s/python
+# is read as "interpreter = /path/to/python (the format is %(varname)s)
+
+# Any variable defined in the default profile is accessible from the other
+# profiles.  Interpolation variables can be nested.
+
+user = username
+password = 123password # Note: this will be removed in favor of an API key
+reference = ~/sympy
+
+[full-tests]
+interpreter = %(defaultpath)s/python2.6, %(defaultpath)s/python2.7
+interpreter3 = %(defaultpath)s/python3.2
+python2 = True
+python3 = True
+
+[full-tests-docs]
+interpreter = %(defaultpath)s/python2.6, %(defaultpath)s/python2.7
+interpreter3 = %(defaultpath)s/python3.2
+python2 = True
+python3 = True
+build_docs = True
+
+[docs]
+build_docs = True
+interpreter = None
+
+[slow-tests]
+interpreter = %(defaultpath)s/python2.6, %(defaultpath)s/python2.7
+interpreter3 = %(defaultpath)s/python3.2
+testcommand = bin/test --slow --timeout 1000

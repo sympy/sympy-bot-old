@@ -29,6 +29,12 @@ to only review mergeable pull requests, do::
 
     ./sympy-bot review mergeable
 
+Requirements
+------------
+
+SymPy bot needs argparse to run. This is part of the standard library in
+Python 2.7, however it can be installed in earlier versions of Python.
+
 Tips
 ----
 
@@ -46,26 +52,60 @@ connections.
 Configuration
 -------------
 
-You can avoid providing your username and password, give a reference to
-a local clone of SymPy's repository, or use a custom test command every
-time when you use SymPy Bot by creating a configuration file for SymPy
-Bot at ``~/.sympy/sympy-bot.conf`` and adding the following lines to it::
+You can configure SymPy bot to remember your GitHub credentials, use an
+existing clone of sympy and run interpreters under different profiles. This is
+done in the ``~/.sympy/sympy-bot.conf`` file. The configuration supports
+multiple profiles, but will always read in the [default] profile, so you should
+start your configuration with your GitHub credentials in the default profile::
 
-    user = "your user name"
-    token = "your GitHub API token"
-    reference = "path to a local clone of SymPy's repository"
-    repository = "remote SymPy's repository (default is sympy/sympy)"
-    interpreter = "interpreter to run tests with (default is 'python')"
-    testcommand = "command to run tests with (default is 'setup.py test')"
+    [default]
+    user = username
+    password = password
 
-Note that with configuration file you can use only token-based GitHub
-authentication mechanism (this is for your safety, but anyway make sure
-that the configuration file has proper permissions assigned, e.g. 600).
-You may leave any value that you don't want to include empty, and the
-default will be used.  If you supply a username and not an API token,
-then sympy-bot will ask you for your GitHub password on each invocation.
+If you have an existing clone of sympy, you can avoid having to clone the SymPy
+repository every time the bot is run::
 
-You can get your GitHub API token by going to https://github.com/account/admin.
+    reference = ~/path/to/sympy
+
+You can specify the interpreters to use by giving a comma separated list of
+Python interpreters::
+
+    interpreter = /path/to/python, /path/to/other/python
+    interpreter3 = /path/to/python3, /path/to/other/python3
+
+which sets the Python 2 and Python 3 interpreters, respectively. By default,
+the interpreters set by ``interpreter`` are run. If you pass the ``-3`` flag or
+set ``python3 = True`` in the configuration file, then ``interpreter3`` will be
+used instead. You can force both by passing ``-2`` and ``-3`` or setting both
+``python2 = True`` and ``python3 = True`` in the configuration file. Setting
+``interpreter = None`` will disable the Python tests, which can be useful in
+setting up a profile just for testing docs.
+
+If you want to test the building of the HTML docs, you can use the ``-D`` flag
+or set ``build_docs = True`` in the configuration file. By default, this will
+disable running the tests. This can be overridden by setting ``python2`` or
+``python3`` options, as above.
+
+Any of the other options set by commandline parameters can be set in the
+configuration file. See ``sympy-bot review --help`` for more information (the
+configuration values are the long form of the option, with any dashes replaced
+with underscores, for example, ``--build-docs`` becomes ``build_docs``).
+
+The configuration also supports different profiles. To set these up, you put
+the name of the profile between square brackets. Then, when you pass
+``--profile profile_name``, the options in the specified section will override
+the default section. This is done in the config file::
+
+    [profile_name]
+    interpreter = /path/to/different/python
+    testcommand = bin/test --other-options
+
+This can be useful for setting up various suites of tests, e.g. slow tests,
+32-bit/64-bit tests, etc.
+
+To see an example configuration file, see the ``sympy-bot.conf.example``
+file.  This file also explains how you can use variable interpolation to avoid
+duplication.
 
 Foreign repositories
 --------------------
@@ -74,7 +114,7 @@ SymPy Bot can be also used with other remote repository than sympy/sympy.
 You can change the remote with ``-R`` flag to sympy-bot or by setting
 ``repository`` in configuration file. The new remote doesn't have to be
 SymPy's repository, but any repository on GitHub. Note that in this case
-you man need to setup customized ``testcommand``.
+you may need to setup customized ``testcommand``.
 
 Custom Master Commit
 --------------------
