@@ -1,240 +1,251 @@
 #! /usr/bin/env python
 
-import json
-from urllib2 import urlopen
 import sys
-from optparse import OptionParser
-from tempfile import mkdtemp
-import subprocess
 import os
-from os.path import expandvars
-import stat
-import urllib2
-import base64
-from urllib import urlencode
-import time
+import ConfigParser
 
-from utils import (cmd, github_get_pull_request,
-        github_authenticate, pastehtml_upload, reviews_sympy_org_upload,
-        github_add_comment_to_pull_request, list_pull_requests, format_repo,
-        get_interpreter_version_info, get_interpreter_exe, github_get_user_info)
-from testrunner import run_tests
-from url_templates import URLs
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, ArgumentTypeError
+from tempfile import mkdtemp
+
+from utils.cmd import (cmd, get_interpreter_version_info, get_platform_version,
+        get_sphinx_version)
+from utils.github import (github_add_comment_to_pull_request,
+        github_authenticate, github_get_pull_request, github_get_user_info,
+        github_list_pull_requests)
+from utils.reviews import reviews_sympy_org_upload
+from utils.testrunner import run_tests
+from utils.url_templates import URLs
 
 default_testcommand = "setup.py test"
-default_interpreter = "python"
-default_interpreter3 = "python3"
-default_proto = 'https'
+default_build_docs_command = "make html-errors"
+default_interpreter = ["python"]
+default_interpreter3 = ["python3"]
+default_protocol = "https"
 
 def main():
-    parser = OptionParser(usage="""\
-[options] [commands]
+    global default_interpreter
+    global default_interpreter3
 
-Commands:
+    # Subclass argparser so help message is displayed when no args passed
+    class BotArgumentParser(ArgumentParser):
+        def error(self, message):
+            if message == "too few arguments":
+                self.print_help(sys.stderr)
+            else:
+                self.print_usage(sys.stderr)
+            self.exit(2, '%s: error: %s\n' % (self.prog, message))
 
-  review NNN            Reviews the pull request NNN; You can specify more than
-                        one number to review several pull requests in a series.
-                        You can also specify 'all' and 'mergeable' instead of
-                        NNN to review all or only all mergeable pull requests.
-  list                  Lists all open pull requests
-  list-numbers          Lists only the numbers of open pull requests;
-                        Suitable for piping into 'xargs -L 1 sympy-bot review'""")
-    parser.add_option("-n", "--no-upload",
-            action="store_false", dest="upload",
-            default=True, help="Do not upload the results into the pull request")
-    parser.add_option("-R", "--repository",
-            action="store", type="str", dest="repository",
-            default=None, help="Change the default 'sympy/sympy' repository to "
-            "something else. This allows to use sympy-bot with other projects.")
-    parser.add_option("-r", "--reference",
-            action="store", type="str", dest="reference",
-            default=None, help="Passes this to 'git clone <sympy repo>'")
-    parser.add_option("-t", "--testcommand", dest="testcommand",
-            default=None, help="Command to run tests with. "
-            "Use this to run only a subset of tests, rather than the full "
-            "test suite. The default is `sympy-bot -t 'setup.py test'`. Note "
-            "that the command is run as the arguments of `python`. To run a "
-            "command without python, add '-V; ' to the beginning, like "
-            "`sympy-bot -t '-V; mycommand'`.")
-    parser.add_option("-i", "--interpreter", dest="interpreter",
-            default=None, help="Select interpreter to run test with. If "
-            "you select Python 3.x, source code will be automatically "
-            "translated using 'bin/use2to3'. The default is 'python'.")
-    parser.add_option("-3", "--python3",
-            action="store_true", default=False, dest="python3",
-            help="Shorthand for 'sympy-bot -i python3")
-    parser.add_option("-s", "--server",
-            action="store", type="str", dest="server",
-            default="http://reviews.sympy.org",
-            help="Server to upload results. Default is "
-            "'http://reviews.sympy.org'")
-    parser.add_option("-m", "--master-commit",
-            action="store", type="str", dest="master_commit",
-            default="origin/master", help="Commit to use as master for merging."  "Use 'origin/master' to use the current master (the default) "
-            "and 'HEAD' to not merge.")
-    parser.add_option("--no-comment",
-            action="store_false", default=True, dest="comment",
-            help="Don't submit a summary comment to the pull request (but still upload the test report).")
-    parser.add_option("-p", "--protocol",
-            type='choice', choices=['https', 'git',],
-            action="store", default="https", dest="proto",
-            help="Choose git protocol if https failed")
+    parser = BotArgumentParser(
+            epilog="For the full help on the  review and list commands, run "
+            "'sympy-bot command -h'.",
+            formatter_class=ArgumentDefaultsHelpFormatter)
+    subparsers = parser.add_subparsers(title="command", dest="command")
 
+    parser_review = subparsers.add_parser("review",
+        description="Reviews specified pull requests.",
+        help="Reviews pull requests",
+        formatter_class=ArgumentDefaultsHelpFormatter)
+    parser_review.add_argument("n", nargs="+",
+        help="Numbers of pull requests to review. You can also specify 'all' "
+        "or 'mergable' pull requests.")
+    parser_review.add_argument("--profile", type=str, default="default",
+        help="Configuration file profile to use, see README for information "
+        "about setting up profiles")
+    parser_review.add_argument("-n", "--no-upload", action="store_true",
+        help="Do not upload the review to the server")
+    parser_review.add_argument("-2", "--python2", nargs="?", const=True,
+        default=None, help="Run the tests with the interpreters specified "
+        "by the `interpreter` option, this is the default behavior, but it "
+        "must be called explicitly to run these interpreters when Python 3 "
+        "tests are run or the docs are built")
+    parser_review.add_argument("-3", "--python3", nargs="?", const=True,
+        default=False, help="Run the tests with the interpreters specified "
+        "by the `interpreter3` configuration file option, which is `python3` "
+        "by default")
+    parser_review.add_argument("-D", "--build-docs", nargs="?", const=True,
+        default=False, help="Test the building of the Sphinx HTML "
+        "documentation")
+    parser_review.add_argument("--no-comment", dest="comment",
+        action="store_false", help="Upload review but do not submit summary "
+        "comment to pull request on GitHub")
+    parser_review.add_argument("-i", "--interpreter", action="append",
+        type=str, default=default_interpreter, help="Python interpreter used "
+        "to run tests")
+    parser_review.add_argument("--interpreter3", action="append", type=str,
+        default=default_interpreter3, help="Python 3 interpreter used to run "
+        "tests")
+    parser_review.add_argument("-t", "--testcommand", type=str,
+        default=default_testcommand, metavar="COMMAND", help="Command, run as "
+        "an argument of `python`, used to execute tests, allowing the use of "
+        "sympy-bot on a subset of the tests, to run a command that is not an "
+        "argument of `python`, add '-V;' to the beginning of the option, for "
+        "example '-V; mycommand'")
+    parser_review.add_argument("--build-docs-command", type=str,
+        default=default_build_docs_command, metavar="COMMAND", help="Command run to "
+        "build the Sphinx docs")
+    parser_review.add_argument("--build-docs-dir", type=str, default="doc",
+        metavar="DIR", help="Directory in which to build the Sphinx docs")
+    parser_review.add_argument("-r", "--reference", type=str, help="Path to "
+        "sympy repository, passed to 'git clone <sympy repo>', setting this "
+        "speeds up sympy-bot and decreases network traffic")
+    parser_review.add_argument("--user", type=str, help="Username used for "
+        "GitHub authentication")
+    parser_review.add_argument("--token", type=str, help="GitHub API token "
+        "used for authentication")
+    parser_review.add_argument("--token-file", type=str, help="File "
+        "containing GitHub API token used for authentication")
+    parser_review.add_argument("-m", "--master-commit", type=str,
+        default="origin/master", metavar="COMMIT", help="Commit to use as "
+        "master for merging, use 'HEAD' to not merge")
+    parser_review.add_argument("-p", "--protocol", type=str,
+        default=default_protocol, choices=["https", "git"], help="Protocol "
+        "for communicating with GitHub")
+    parser_review.add_argument("-s", "--server", type=str,
+        default="http://reviews.sympy.org", help="Server to upload results")
+    parser_review.add_argument("-R", "--repository", type=str, default="sympy/sympy",
+        help="GitHub repository used, allowing sympy-bot to be used with "
+        "other projects")
 
-    options, args = parser.parse_args()
-    config = load_config_file()
+    parser_list = subparsers.add_parser("list",
+        description="Lists available pull requests",
+        help="Lists available pull requests",
+        formatter_class=ArgumentDefaultsHelpFormatter)
+    parser_list.add_argument("-n", "--numbers", action="store_true",
+        help="List only the numbers of open pull requests, suitable for "
+        "piping into 'xargs -L 1 sympy-bot review'")
+    parser_list.add_argument("--profile", type=str, default="default",
+        help="Configuration file profile to use, see README for information "
+        "about setting up profiles")
+    parser_list.add_argument("-R", "--repository", type=str, default="sympy/sympy",
+        help="GitHub repository used, allowing sympy-bot to be used with "
+        "other projects")
 
-    if options.repository is None:
-        options.repository = config.get("repository", "sympy/sympy")
-    if options.reference is None:
-        options.reference = config.get("reference")
-    if options.testcommand is None:
-        options.testcommand = config.get("testcommand", default_testcommand)
-    if options.interpreter is None:
-        if options.python3:
-            options.interpreter = config.get("interpreter3", default_interpreter3)
+    # Initial parse to print help
+    options = parser.parse_args()
+    # Load configuration and set defaults from it
+    config = load_config_file(options.profile)
+    # Parse args that should be booleans, but come as strings from ConfigParser
+    for i in ("build_docs", "no_comment", "no_upload", "python2", "python3"):
+        if i in config and isinstance(config[i], str):
+            val = config[i].strip()
+            if val.lower() in ("true", "y", "yes"):
+                config[i] = True
+            elif val.lower() in ("false", "n", "no"):
+                config[i] = False
+            else:
+                raise ConfigParser.Error("Unable to parse boolean configuration value for %s: %s" % (i, val))
+    # If interpreter/interpreter3 is set in config file, use them as the default
+    parser.set_defaults(interpreter=None)
+    parser.set_defaults(interpreter3=None)
+    if "interpreter" in config:
+        interp = config["interpreter"]
+        if interp.strip().lower() == "none":
+            config["interpreter"] = []
         else:
-            options.interpreter = config.get("interpreter", default_interpreter)
-    proto = options.proto if options.proto != default_proto else default_proto
+            config["interpreter"] = [i.strip() for i in interp.split(",")]
+    if "interpreter3" in config:
+        interp = config.pop("interpreter3")
+        if interp.strip().lower() == "none":
+            config["interpreter3"] = []
+        else:
+            config["interpreter3"] = [i.strip() for i in interp.split(",")]
+    parser.set_defaults(**config)
+    # Parse args
+    options = parser.parse_args()
+    for i in ("build_docs", "comment", "no_upload", "python2", "python3"):
+        val = getattr(options, i)
+        if isinstance(val, str):
+            val = val.strip()
+            if val.lower() in ("true", "y", "yes"):
+                setattr(options, i, True)
+            elif val.lower() in ("false", "n", "no"):
+                setattr(options, i, False)
+            else:
+                raise ArgumentTypeError("Unable to parse boolean configuration value for %s: %s" % (i, val))
 
-    options.user = config.get("user")
-    options.token = config.get("token")
-    options.token_file = config.get("token_file")
-    if not options.token and options.token_file:
-        options.token = load_token_file(options.token_file)
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
-    if len(args) == 1:
-        arg, = args
-        if arg == "list":
-            list_pull_requests(urls)
-            return
-        elif arg == "list-numbers":
-            list_pull_requests(urls, numbers_only=True)
-            return
-        print "Unknown command"
-        sys.exit(1)
-    elif len(args) >= 2:
-        arg1 = args[0]
-        if arg1 == "review":
-            args = args[1:]
-            if len(args) == 1:
-                if args[0] == "mergeable":
-                    print "Reviewing all *mergeable* pull requests"
-                    print
-                    nonmergeable, mergeable = list_pull_requests( \
-                            urls, numbers_only=True)
-                    nums = mergeable
-                elif args[0] == "all":
-                    print "Reviewing *all* pull requests"
-                    print
-                    nonmergeable, mergeable = list_pull_requests( \
-                            urls, numbers_only=True)
-                    nums = nonmergeable + mergeable
-                else:
-                    # just a pull request #, convert it:
-                    nums = [int(args[0])]
-            else:
-                # list of pull request numbers, convert it:
-                nums = [int(x) for x in args]
-            if options.upload:
-                username, password, token = github_authenticate(urls.api_url, options)
-                if config == {}:
-                    create = raw_input("> No config file found, create? [Y/n] ")
-                    if create.lower() in ["y", "yes", ""]:
-                        save_config_file(username, password, token)
-                elif password and token:
-                    create = raw_input("> Save token information to configuration file? [Y/n] ")
-                    if create.lower() in ["y", "yes", ""]:
-                        save_token(token)
-            else:
-                username = password = token = None
-            try:
-                for n in nums:
-                    review(urls, n, options, username=username, \
-                            password=password, token=token, \
-                            proto=proto
-                          )
-            except KeyboardInterrupt:
-                print "\n> Quitting on signal SIGINT."
-                sys.exit(1)
-            return
-        print "Unknown command"
-        sys.exit(1)
-    elif len(args) == 0:
-        pass
-    else:
-        print "Too many arguments"
-        sys.exit(1)
-    parser.print_help()
+    if options.command == "list":
+        github_list_pull_requests(urls, numbers_only=options.numbers)
+    elif options.command == "review":
+        # No interpreter/interpreter3 set
+        if options.interpreter is None:
+            options.interpreter = default_interpreter
+        if options.interpreter3 is None:
+            options.interpreter3 = default_interpreter3
+        # Nothing specified, then use default
+        if options.python2 is None and not options.python3 and not options.build_docs:
+            interpreter = options.interpreter
+        else:
+            interpreter = []
+        # Command line `-2`/config file `python2`
+        if options.python2:
+            interpreter += options.interpreter
+        # Command line `-3`/config file `python3`
+        if options.python3:
+            interpreter += options.interpreter3
 
-def formulate_review(report_url, report_status, xpassed, master_hash,
-        branch_hash, user, config):
-    user = user.get("login", None)
+        options.interpreter = interpreter
 
-    if user:
-        atuser = "@"+user+": "
-    else:
-        atuser = ""
-    if report_status == "conflicts":
-        summary = """:exclamation: There were merge conflicts; could not test the branch.
+        if options.n == "mergable":
+            print "> Reviewing all *mergeable* pull requests"
+            print
+            nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
+            options.n = mergeable
+        elif options.n == "all":
+            print "> Reviewing *all* pull requests"
+            print
+            nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
+            options.n = nonmergeable + mergeable
+        else:
+            # list of pull request numbers, convert it:
+            options.n = map(int, options.n)
 
-%sPlease rebase or merge your branch with master.  \
-See the report for a list of the merge conflicts.""" % atuser
-    elif report_status == "fetch":
-        summary = """:x: Could not fetch the branch.
+        if not options.no_upload:
+            if not options.token and options.token_file:
+                options.token = load_token_file(options.token_file)
+            username, password, token = github_authenticate(urls, options.user, options.token)
+        else:
+            username = password = token = None
 
-%sPlease run the sympy-bot tests again.""" % atuser
-    elif report_status == "Failed":
-        summary = """:red_circle: There were test failures.
+        try:
+            dispatch_reviews(options, urls, username=username, password=password)
+        except KeyboardInterrupt:
+            print "\n> Quitting on signal SIGINT."
+            sys.exit(1)
 
-%sPlease fix the test failures.""" % atuser
-    elif report_status == "Passed":
-        summary = """:eight_spoked_asterisk: All tests have passed."""
-    else:
-        raise ValueError("Unknown report_status")
-
-    details  = get_platform_version(config.interpreter)
-    if config.testcommand != default_testcommand:
-        bold = "**"
-    else:
-        bold = ""
-    details += """*Test command:* %s%s%s\n""" % (bold, config.testcommand, bold)
-    details += """*master hash*: %s\n""" % master_hash
-    details += """*branch hash*: %s\n""" % branch_hash
-
-    report = """\
-**SymPy Bot Summary:** %s
-
-Test results html report: %s
-
-%s
-Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot).""" % \
-    (summary, report_url, details,)
-
-    return report
-
-def load_config_file():
-    conf_file = os.path.normpath('.sympy/sympy-bot.conf')
-    conf_file = os.path.join('~', conf_file)
+def load_config_file(profile):
+    conf_file = os.path.normpath('~/.sympy/sympy-bot.conf')
     conf_file = os.path.expanduser(conf_file)
 
-    if os.path.exists(conf_file):
-        namespace = {}
+    parser = ConfigParser.SafeConfigParser()
 
+    if os.path.exists(conf_file):
+        print "> Using config file %s" % conf_file
         with open(conf_file) as f:
             try:
-                exec f.read() in namespace
-            except (SystemExit, KeyboardInterrupt):
-                raise
-            except:
-                print "> WARNING: The config file cannot be parsed."
-                pass
+                parser.readfp(f)
+            except IOError as e:
+                print "> WARNING: Unable to open config file:", e
+            except ConfigParser.Error as e:
+                print "> WARNING: Unable to parse config file:", e
             else:
-                print "> Using configuration file %s" % conf_file
-                return namespace
+                print "> Loaded configuration file"
 
+                if parser.has_section("default"):
+                    default_items = dict(parser.items("default", raw=True))
+                else:
+                    default_items = {}
+
+                if profile.lower() == "default":
+                    items = default_items
+                elif parser.has_section(profile):
+                    items = dict(parser.items(profile, vars=default_items))
+                else:
+                    raise ConfigParser.Error("Configuration file does not contain profile: %s" % profile)
+
+                return items
     return {}
 
 def save_config_file(username, password, token):
@@ -354,139 +365,263 @@ def save_token(token):
         return
     print "> Token file saved"
 
-def get_executable(interpreter):
-    path = os.environ['PATH']
-    paths = path.split(os.pathsep)
-    interpreter_exe = None
-    if os.name=="nt":
-        return get_interpreter_exe(interpreter)
-    if os.path.isfile(interpreter):
-        return interpreter
-    else:
-        for p in paths:
-            f = os.path.join(p, interpreter)
-            if os.path.isfile(f):
-                return f
-
-def get_platform_version(interpreter):
-    from os import getenv
-    import platform
-    code = 'import sys; print(getattr(sys, "maxint", None))'
-    call = "%s -c '%s'" % (interpreter, code)
-    size = cmd(call, capture=True)
-    if size == 'None\n': #Python 3 doesn't have maxint
-        code = 'import sys; print(sys.maxsize)'
-        call = "%s -c '%s'" % (interpreter, code)
-        size = cmd(call, capture=True)
-    size = int(size)
-    if size > 2**32:
-        architecture = "64-bit"
-    else:
-        architecture = "32-bit"
-    platfotm_system = platform.system()
-    use_cache = getenv('SYMPY_USE_CACHE', 'yes').lower()
-    executable = get_executable(interpreter)
-    python_version = get_interpreter_version_info(interpreter)
-    r  = "*Interpreter:*   %s  (%s)\n" % (executable, python_version)
-    r += "*Architecture:* %s (%s)\n" % (platfotm_system, architecture)
-    r += "*Cache:*        %s\n" % use_cache
-    return r
-
-def review(urls, n, config, **kwargs):
-    # Make sure python3 is setup correctly
-    # If set Python 3 interpreter with -i, be sure python3 is True
+def dispatch_reviews(config, urls, **kwargs):
     username = kwargs.get("username", None)
     password = kwargs.get("password", None)
-    token = kwargs.get("token", None)
-    proto = kwargs.get("proto", None) or default_proto
-    if get_interpreter_version_info(config.interpreter)[0] == '3':
-        config.python3 = True
-    # If set Python 2 interpreter with -i and set -3, raise error
-    elif config.python3:
-        raise ValueError("Python 2 interpreter passed with -3 option")
+
+    pr_numbers = config.n
+    interpreters = config.interpreter
+    python3 = dict( [(i, get_interpreter_version_info(i)[0] == '3') for i in interpreters] )
 
     tmpdir = mkdtemp(prefix="sympy-bot-tmp")
     print "> Working directory: %s" % tmpdir
-    pull = github_get_pull_request(urls.single_pull_template, n)
-    assert pull["number"] == n
-    print "> Reviewing pull request #%d" % n
-    repo = pull["head"]['repo']["html_url"]
-    repo = repo.replace(default_proto, proto) if proto != default_proto else repo
-    branch = pull["head"]["ref"]
-    user = pull["head"]["user"]
-    user_info = github_get_user_info(urls.user_info_template, user["login"])
-    author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
-                              user_info.get("email", ""))
-    print "> Pull request info:"
-    print unicode(">     Author: %s" % author).encode('utf8')
-    print ">     Repository: %s" % repo
-    print ">     Branch: %s" % branch
 
-    print format_repo("> Cloning {repo} master", config.repository)
-
+    print "> Cloning %s master" % config.repository
     if config.reference:
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
-        cmd(format_repo("cd %s && git clone --reference %s git://github.com/{repo}.git", config.repository) % (tmpdir, reference))
+        cmd("git clone --reference %s git://github.com/%s.git" % (reference, config.repository),
+                cwd=tmpdir)
     else:
-        cmd(format_repo("cd %s && git clone git://github.com/{repo}.git",
-            config.repository) % tmpdir)
+        cmd("git clone git://github.com/%s.git" % config.repository,
+                cwd=tmpdir)
 
-    print "> Testing..."
-    result = run_tests(format_repo("https://github.com/{repo}.git",
-        config.repository),
-            repo, branch, tmpdir + "/sympy", config.testcommand,
-            config.interpreter, config.python3, config.master_commit)
-    if result["result"] == "error":
-        print "There was an error. Report not uploaded."
-        sys.exit(1)
-    print "Done."
-    print
-    log_file = os.path.join("%s" % tmpdir, "out", "log")
-    print "View log at: %s" % log_file
-    log = result["log"]
-    report_status = result["result"]
-    xpassed = result["xpassed"]
-    bot_file = os.path.realpath(os.path.abspath(__file__))
-    bot_dir = os.path.dirname(bot_file)
+    # Generate all reviews
+    log_dir_base = os.path.join(tmpdir, "out")
+    os.mkdir(log_dir_base)
+    reviews = {}
+    for n in pr_numbers:
+        if len(pr_numbers) == 1:
+            log_dir = log_dir_base
+        else:
+            log_dir = os.path.join(log_dir_base, "pr-%s" % n)
+            os.mkdir(log_dir)
 
-    master_hash = result["master_hash"]
-    branch_hash = result["branch_hash"]
+        # Write pull request info
+        pull = github_get_pull_request(urls, n)
+        assert pull["number"] == n
+        print "> Reviewing pull request #%d" % n
+        repo_url = pull["head"]["repo"]["html_url"]
+        repo_url = repo_url.replace(default_protocol, config.protocol)
+        branch = pull["head"]["ref"]
+        user = pull["head"]["user"].get("login")
+        user_info = github_get_user_info(urls, user)
+        author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
+                                  user_info.get("email", ""))
+        print "> Pull request info:"
+        print unicode(">     Author: %s" % author).encode('utf8')
+        print ">     Repository: %s" % repo_url
+        print ">     Branch: %s" % branch
+        del pull
 
-    if os.name=='nt':
-        mkdir_command = "mkdir"
-    else:
-        mkdir_command = "mkdir -p"
-    cmd("%s %s" % (mkdir_command, os.path.join(tmpdir, "out")))
-    open(log_file, "w").write(log)
-    if config.upload:
-        print "> Uploading test results"
-        url_base = config.server
-        data = {
-                "num": n,
-                "result": report_status,
-                "interpreter": config.interpreter,
-                "testcommand": config.testcommand,
-                "log": log,
-                "master_hash": master_hash,
-                "branch_hash": branch_hash,
+        pull_review = {}
+
+        # Iterate over interpreters
+        for log_num, i in enumerate(interpreters):
+            # Run tests
+            print "> Testing interpreter %s" % i
+            command = "%s %s" % (i, config.testcommand)
+            repo_path = os.path.join(tmpdir, "sympy")
+            result = run_tests(repo_url, branch, repo_path, command,
+                    python3[i], config.master_commit)
+            if result["result"] == "error":
+                print "> There was an error. Report not uploaded."
+                sys.exit(1)
+            print "> Done."
+
+            # Log results
+            log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
+            with open(log_file, "w") as log:
+                log.write(result["log"])
+            print "> Results logged to %s" % log_file
+
+            # Upload results
+            if not config.no_upload:
+                print "> Uploading test results"
+                url_base = config.server
+                data = {
+                    "num" : n,
+                    "result" : result["result"],
+                    "interpreter": i,
+                    "log": result["log"],
+                    "testcommand": config.testcommand,
+                    "master_hash": result["master_hash"],
+                    "branch_hash": result["branch_hash"],
                 }
-        report_url = reviews_sympy_org_upload(data, url_base)
-        print "> Uploaded report at: %s" % report_url
-        review = formulate_review(report_url, report_status,
-                xpassed, master_hash, branch_hash, user, config)
+                report_url = reviews_sympy_org_upload(data, url_base)
+                print "> Uploaded report for '%s' at: %s" % (i, report_url)
+            else:
+                report_url = "(report was not uploaded)"
+
+            pull_review[i] = {
+                "result" : result["result"],
+                "xpassed" : result["xpassed"],
+                "master_hash" : result["master_hash"],
+                "branch_hash" : result["branch_hash"],
+                "url" : report_url
+            }
+            del result
+            print
+
+        if config.build_docs:
+            # Run tests
+            print "> Building Sphinx docs"
+            if get_sphinx_version() is None:
+                print "> WARNING: Cannot find sphinx, disabling building HTML docs"
+                if interpreters == []:
+                    print "> No tests to run, exiting"
+                    exit()
+            else:
+                repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
+                result = run_tests(repo_url, branch, repo_path,
+                        config.build_docs_command, False, config.master_commit)
+                if result["result"] == "error":
+                    print "There was an error. Report not uploaded."
+                    sys.exit(1)
+                print "> Done."
+
+            # Log results
+            log_file = os.path.join(log_dir, "docs")
+            with open(log_file, "w") as log:
+                log.write(result["log"])
+            print "> Results logged to %s" % log_file
+
+            # Upload results
+            if not config.no_upload:
+                print "> Uploading test results"
+                url_base = config.server
+                data = {
+                    "num" : n,
+                    "result" : result["result"],
+                    "interpreter": "None",
+                    "log": result["log"],
+                    "testcommand": config.build_docs_command,
+                    "master_hash": result["master_hash"],
+                    "branch_hash": result["branch_hash"],
+                }
+                report_url = reviews_sympy_org_upload(data, url_base)
+                print "> Uploaded report for building docs at: %s" % report_url
+            else:
+                report_url = "(report was not uploaded)"
+
+            pull_review["build_docs"] = {
+                "result" : result["result"],
+                "xpassed" : result["xpassed"],
+                "master_hash" : result["master_hash"],
+                "branch_hash" : result["branch_hash"],
+                "url" : report_url
+            }
+            del result
+            print
+        reviews[n] = pull_review
+        print "> View logs for PR %d in: %s" % (n, log_dir_base)
+
+    # Summarize and comment
+    for n, pull_review in reviews.iteritems():
+        report_url = dict([(i, result["url"]) for i, result in pull_review.iteritems()])
+        report_status = dict([(i, result["result"]) for i, result in pull_review.iteritems()])
+        xpassed = dict([(i, result["xpassed"]) for i, result in pull_review.iteritems()])
+        master_hash = dict([(i, result["master_hash"]) for i, result in pull_review.iteritems()])
+        branch_hash = dict([(i, result["branch_hash"]) for i, result in pull_review.iteritems()])
+
+        # Generate summary
+        review = formulate_review(report_status, report_url, master_hash,
+                branch_hash, config.interpreter, config.testcommand,
+                config.build_docs, config.build_docs_command, user)
+
+        print "> Review:"
+        print review
+        print
+
+        # Comment to GitHub
+        if not config.no_upload and config.comment:
+            print "> Uploading the review to the GitHub pull request ..."
+            github_add_comment_to_pull_request(urls, username, password, n,
+                    review)
+            print ">     Done."
+            print "> Check the results: https://github.com/%s/pull/%d" % (config.repository, n)
+
+def formulate_review(report_status, report_url, master_hash, branch_hash, interpreter, testcommand, build_docs, build_docs_command, user):
+    if user:
+        atuser = "@"+user+": "
     else:
-        review = formulate_review("(report was not uploaded)",
-                report_status, xpassed, master_hash, branch_hash, user, config)
-    print "> Review:"
-    print review
-    if config.upload and config.comment:
-        print "> Uploading the review to the GitHub pull request ..."
-        github_add_comment_to_pull_request(urls.issue_comment_template, \
-                                           username, password, token, n, review
-                                          )
-        print ">     Done."
-        print format_repo("> Check the results: https://github.com/{repo}/pull/%d", config.repository) % n
-    print "> Merged pull request available in: %s" % tmpdir
+        atuser = ""
+
+    if any([status == "conflicts" for status in report_status.itervalues()]):
+        summary = """:exclamation: There were merge conflicts; could not test the branch.
+
+%sPlease rebase or merge your branch with master.  \
+See the report for a list of the merge conflicts.""" % atuser
+    elif any([status == "fetch" for status in report_status.itervalues()]):
+        summary = """:x: Could not fetch the branch.
+
+%sPlease run the sympy-bot tests again.""" % atuser
+    elif any([status == "Failed" for status in report_status.itervalues()]):
+        summary = """:red_circle: There were test failures.
+
+%sPlease fix the test failures.""" % atuser
+    elif all([status == "Passed" for status in report_status.itervalues()]):
+        summary = """:eight_spoked_asterisk: All tests have passed."""
+    else:
+        raise ValueError("Unknown report_status")
+
+
+    report = """**SymPy Bot Summary:** %s\n\n""" % summary
+
+    for n, i in enumerate(interpreter, start=1):
+        status = report_status[i]
+        if status == "conflicts":
+            summary = """:exclamation: There were merge conflicts; could not test the branch."""
+        elif status == "fetch":
+            summary = """:x: Could not fetch the branch."""
+        elif status == "Failed":
+            summary = """:red_circle: There were test failures."""
+        elif status == "Passed":
+            summary = """:eight_spoked_asterisk: All tests have passed."""
+        else:
+            raise ValueError("Unknown report_status")
+
+        details = get_platform_version(i)
+        if testcommand != default_testcommand:
+            bold = "**"
+        else:
+            bold = ""
+        details += """*Test command:* %s%s%s\n""" % (bold, testcommand, bold)
+        details += """*master hash*: %s\n""" % master_hash[i]
+        details += """*branch hash*: %s\n""" % branch_hash[i]
+
+        if len(interpreter) > 1:
+            report += """**Interpreter %d:** %s\n\n""" % (n, summary)
+        report += "%s\n" % details
+        report += """Test results html report: %s\n\n""" % report_url[i]
+
+    if build_docs:
+        status = report_status["build_docs"]
+        if status == "conflicts":
+            summary = """:exclamation: There were merge conflicts; could not test the branch."""
+        elif status == "fetch":
+            summary = """:x: Could not fetch the branch."""
+        elif status == "Failed":
+            summary = """:red_circle: There were test failures."""
+        elif status == "Passed":
+            summary = """:eight_spoked_asterisk: All tests have passed."""
+        else:
+            raise ValueError("Unknown report_status")
+
+        details = get_sphinx_version()
+        if build_docs_command != default_build_docs_command:
+            bold = "**"
+        else:
+            bold = ""
+        details += """*Docs build command:* %s%s%s\n""" % (bold, build_docs_command, bold)
+        details += """*master hash*: %s\n""" % master_hash["build_docs"]
+        details += """*branch hash*: %s\n""" % branch_hash["build_docs"]
+
+        report += """**Build HTML Docs:** %s\n\n""" % summary
+        report += """%s\n""" % details
+        report += """Test results html report: %s\n\n""" % report_url["build_docs"]
+
+    report += """Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
+    return report
 
 if __name__ == "__main__":
     main()
