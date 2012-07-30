@@ -148,118 +148,6 @@ class AsyncHandler(webapp.RequestHandler):
         output = s.handle_request_from_client(self.request.body)
         self.response.out.write(output)
 
-class UpdateBase(RequestHandler):
-    def update(self, full=False):
-        data = github_get_pull_request_all_v3("sympy/sympy")
-        if full:
-            data += github_get_pull_request_all_v3("sympy/sympy", "closed")
-        p = PullRequest.all()
-        p.filter("state =", "open")
-        open_list = [x.num for x in p]
-        for pull in data:
-            num = pull["number"]
-            # Get the old entity or create a new one:
-            p = PullRequest.all()
-            p.filter("num =", int(num))
-            p = p.get()
-            if p is None:
-                p = PullRequest(num=num)
-            # Update all data that we can from GitHub:
-            p.url = pull['html_url']
-            p.state = pull["state"]
-            p.title = pull["title"]
-            p.body = pull["body"]
-            created_at = pull["created_at"]
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-            p.created_at = created_at
-
-            u = User.all()
-            u.filter("login =", pull["user"]["login"])
-            u = u.get()
-            if u is None:
-                u = User(login=pull["user"]["login"])
-                u.put()
-            p.author = u
-
-            p.put()
-            # Update the rest with a specific query to the pull request:
-            if num not in open_list:
-                # open_list pull requests will be updated below
-                taskqueue.add(url="/worker", queue_name="github",
-                        params={"type": "pullrequest", "num": num})
-        for num in open_list:
-            taskqueue.add(url="/worker", queue_name="github",
-                    params={"type": "pullrequest", "num": num})
-        if full:
-            for u in User.all():
-                taskqueue.add(url="/worker", queue_name="github",
-                        params={"type": "user", "login": u.login})
-
-class UpdatePage(UpdateBase):
-    def get(self):
-        self.update(full=True)
-        self.response.out.write("OK")
-
-class QuickUpdatePage(UpdateBase):
-    def get(self):
-        self.update(full=False)
-        self.response.out.write("OK")
-
-class Worker(webapp.RequestHandler):
-
-    def post(self):
-        _type = self.request.get("type")
-        def txn():
-            assert _type == "pullrequest"
-            _num = int(self.request.get("num"))
-            pull = github_get_pull_request("sympy/sympy", _num)
-            p = PullRequest.all()
-            p.filter("num =", int(_num))
-            p = p.get()
-            if p is None:
-                p = PullRequest(num=_num)
-            p.url = pull['html_url']
-            p.state = pull["state"]
-            p.title = pull["title"]
-            p.body = pull["body"]
-            p.mergeable = pull["mergeable"]
-            if pull['head']['repo']:
-                p.repo = pull['head']['repo']['url']
-            p.branch = pull['head']['ref']
-            p.author_name = pull["user"].get("name", "")
-            p.author_email = pull["user"].get("email", "")
-            created_at = pull["created_at"]
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-            p.created_at = created_at
-            p.put()
-        def user():
-            assert _type == "user"
-            login = self.request.get("login")
-            data = github_get_user(login)
-            u = User.all()
-            u.filter("login =", data["login"])
-            u = u.get()
-            if u is None:
-                u = User(login=data["login"])
-
-            u.id = data['id']
-            u.avatar_url = data['avatar_url']
-            u.url = data['url']
-            u.name = data.get("name")
-            u.email = data.get("email")
-            created_at = data["created_at"]
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-            u.created_at = created_at
-            u.put()
-        # This raises:
-        #BadRequestError: Only ancestor queries are allowed inside transactions.
-        #db.run_in_transaction(txn)
-        if _type == "pullrequest":
-            txn()
-        elif _type == "user":
-            user()
-        else:
-            raise ValueError("wrong type")
 
 class UploadPull(RequestHandler):
 
@@ -341,7 +229,7 @@ class UploadPull(RequestHandler):
                               sha_hash.hexdigest()
                     notify_admins(user, new_url)
                 if self.request.get("populate"):
-                    taskqueue.add(url="/worker-ng", queue_name="github")
+                    taskqueue.add(url="/worker", queue_name="github")
                 rows = UploadURL.all()
                 last_row = rows.order("-created_at").get()
                 if last_row:
@@ -359,7 +247,7 @@ class UploadPull(RequestHandler):
                    )
 
 
-class WorkerNG(webapp.RequestHandler):
+class Worker(webapp.RequestHandler):
     """
     This class using for populating pull requests database and users
     (calls when admin press "Populate" button)
@@ -414,11 +302,8 @@ def main():
         ('/async/?', AsyncHandler),
         ('/pullrequest/(\d+)/?', PullRequestPage),
         ('/report/(.*)/?', ReportPage),
-        ('/update/?', UpdatePage),
-        ('/quickupdate/?', QuickUpdatePage),
         ('/worker/?', Worker),
         ('/upload_pull/?(.*)/?', UploadPull),
-        ('/worker-ng/?', WorkerNG),
     ]
     application = webapp.WSGIApplication(urls, debug=True)
     run_wsgi_app(application)
