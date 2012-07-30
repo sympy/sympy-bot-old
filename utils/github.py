@@ -169,7 +169,7 @@ def github_authenticate(urls, username, token=None):
         password = getpass("Password: ")
         try:
             print "> Checking username and password ..."
-            github_check_authentication(urls, username, password)
+            github_check_authentication(urls, username, password, None)
         except AuthenticationFailed:
             print ">     Authentication failed"
         else:

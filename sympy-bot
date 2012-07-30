@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import stat
 import sys
 import os
 import ConfigParser
@@ -21,6 +22,8 @@ default_build_docs_command = "make html-errors"
 default_interpreter = ["python"]
 default_interpreter3 = ["python3"]
 default_protocol = "https"
+
+default_section = "DEFAULT"
 
 def main():
     global default_interpreter
@@ -48,7 +51,7 @@ def main():
     parser_review.add_argument("n", nargs="+",
         help="Numbers of pull requests to review. You can also specify 'all' "
         "or 'mergable' pull requests.")
-    parser_review.add_argument("--profile", type=str, default="default",
+    parser_review.add_argument("--profile", type=str, default=default_section,
         help="Configuration file profile to use, see README for information "
         "about setting up profiles")
     parser_review.add_argument("-n", "--no-upload", action="store_true",
@@ -113,7 +116,7 @@ def main():
     parser_list.add_argument("-n", "--numbers", action="store_true",
         help="List only the numbers of open pull requests, suitable for "
         "piping into 'xargs -L 1 sympy-bot review'")
-    parser_list.add_argument("--profile", type=str, default="default",
+    parser_list.add_argument("--profile", type=str, default=default_section,
         help="Configuration file profile to use, see README for information "
         "about setting up profiles")
     parser_list.add_argument("-R", "--repository", type=str, default="sympy/sympy",
@@ -209,6 +212,18 @@ def main():
         else:
             username = password = token = None
 
+        if username:
+            if config:
+                if password and token:
+                    create_config = raw_input("> Update config file? [Y/n] ")
+                else:
+                    create_config = "no"
+            else:
+                create_config = raw_input("> Create config file? [Y/n] ")
+
+            if create_config.lower() in ["y", "ye", "yes", ""]:
+                save_config_file(username, token)
+
         try:
             dispatch_reviews(options, urls, username=username, password=password)
         except KeyboardInterrupt:
@@ -233,12 +248,14 @@ def load_config_file(profile):
             else:
                 print "> Loaded configuration file"
 
-                if parser.has_section("default"):
-                    default_items = dict(parser.items("default", raw=True))
-                else:
+                # Try to get default items, as the following will not be true:
+                # parser.has_section("DEFAULT")
+                try:
+                    default_items = dict(parser.items(default_section, raw=True))
+                except ConfigParser.NoSectionError:
                     default_items = {}
 
-                if profile.lower() == "default":
+                if profile.upper() == default_section:
                     items = default_items
                 elif parser.has_section(profile):
                     items = dict(parser.items(profile, vars=default_items))
@@ -248,45 +265,33 @@ def load_config_file(profile):
                 return items
     return {}
 
-def save_config_file(username, password, token):
+def save_config_file(username, token):
     filename = "~/.sympy/sympy-bot.conf"
     filename = os.path.expanduser(filename)
     filename = os.path.abspath(filename)
+
     folder, _ = os.path.split(filename)
-    output = "user = \"%s\"\n" % username
+
+    parser = ConfigParser.SafeConfigParser()
+    if os.path.isfile(filename):
+        try:
+            with open(filename, 'r') as f:
+                parser.readfp(f)
+        except IOError as e:
+            print "> Unable to open current config file: ", e
+            return
+
+    parser.set(default_section.upper(), 'user', username)
+
     if token:
-        output_token = raw_input("> Create separate file for token? [Y/n] ")
-        if output_token.lower() in ["y", "yes", ""]:
-            token_file = raw_input("> Enter token file location [~/.sympy/token] ")
-            if token_file == "":
-                token_file = "~/.sympy/token"
-            output += "token_file = \"%s\"\n" % token_file
-            token_file = os.path.expanduser(token_file)
-            token_file = os.path.abspath(token_file)
-            token_folder, _ = os.path.split(token_file)
-            try:
-                if not os.path.isdir(token_folder):
-                    os.mkdir(token_folder, 0o700)
-                with open(token_file, 'w') as f:
-                    f.write(token)
-                os.chmod(token_file, stat.S_IREAD | stat.S_IWRITE)
-            except OSError:
-                print "> Unable to create folder for token file"
-                return
-            except IOError:
-                print "> Unable to save token file"
-                return
-        else:
-            output += "token = \"%s\"\n" % token
-    elif password:
-        output_pass = raw_input("> Save password to file? [y/N] ")
-        if output_pass.lower() in ["y", "yes"]:
-            output += "password = \"%s\"\n" % password
+        opt, val = save_token(token)
+        parser.set(default_section.upper(), opt, val)
+
     try:
         if not os.path.isdir(folder):
             os.mkdir(folder)
         with open(filename, 'w') as f:
-            f.write(output)
+            parser.write(f)
     except OSError:
         print "> Unable to create folder for configuration file"
         return
@@ -319,14 +324,16 @@ def save_token(token):
     filename = "~/.sympy/sympy-bot.conf"
     filename = os.path.expanduser(filename)
     filename = os.path.abspath(filename)
+
     folder, _ = os.path.split(filename)
 
     output_token = raw_input("> Create separate file for token? [Y/n] ")
     if output_token.lower() in ["y", "yes", ""]:
         token_file = raw_input("> Enter token file location [~/.sympy/token] ")
-        if token_file == "":
-            token_file = "~/.sympy/token"
-        output = "token_file = \"%s\"\n" % token_file
+        token_file = token_file or "~/.sympy/token"
+
+        opt, val = "token_file", token_file
+
         token_file = os.path.expanduser(token_file)
         token_file = os.path.abspath(token_file)
         token_folder, _ = os.path.split(token_file)
@@ -336,34 +343,16 @@ def save_token(token):
             with open(token_file, 'w') as f:
                 f.write(token + '\n')
             os.chmod(token_file, stat.S_IREAD | stat.S_IWRITE)
-        except OSError:
-            print "> Unable to create folder for token file"
+        except OSError as e:
+            print "> Unable to create folder for token file: ", e
             return
-        except IOError:
-            print "> Unable to save token file"
+        except IOError as e:
+            print "> Unable to save token file: ", e
             return
     else:
-        output = "token = \"%s\"\n" % token
+        opt, val = "token", token
 
-    try:
-        if not os.path.isdir(folder):
-            os.mkdir(folder)
-        with open(filename, 'r') as f:
-            config = f.read()
-        if config.find("password") > -1:
-            start = config.find("password")
-            end = config.find('\n', start)
-            config = config[:start] + config[end+1:]
-        with open(filename, 'w') as f:
-            f.write(config)
-            f.write(output)
-    except OSError:
-        print "> Unable to create folder for configuration file"
-        return
-    except IOError:
-        print "> Unable to save configuration file"
-        return
-    print "> Token file saved"
+    return opt, val
 
 def dispatch_reviews(config, urls, **kwargs):
     username = kwargs.get("username", None)
