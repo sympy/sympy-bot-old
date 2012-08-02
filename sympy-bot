@@ -196,7 +196,7 @@ def main():
             # list of pull request numbers, convert it:
             options.n = map(int, options.n)
 
-        if not options.no_upload:
+        if not options.no_upload and options.comment:
             username, password = github_authenticate(urls, config.get("user"), config.get("password"))
         else:
             username = password = None
