@@ -475,7 +475,7 @@ sympy-bot tests again."""
         raise ValueError("Unknown report_status")
 
 
-    report = """**[SymPy Bot](https://github.com/sympy/sympy-bot) Summary**: %s\n\n""" % summary
+    report = """**[SymPy Bot][sympy-bot] Summary**: %s\n\n""" % summary
 
     for n, i in enumerate(interpreter, start=1):
         status = report_status[i]
@@ -503,6 +503,8 @@ sympy-bot tests again."""
         report += """**Build HTML Docs:** %s\n""" % summary
         report += """%s\n""" % details
 
+    report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
+SymPy-Bot GitHub page."'''
     return report.format(**formatdict)
 
 def get_summary(status, report_url):
