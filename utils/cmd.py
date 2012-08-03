@@ -94,12 +94,14 @@ def get_platform_version(interpreter):
     else:
         architecture = "32-bit"
     platform_system = platform.system()
+    # TODO: This doesn't recognize bin/test -C (issue #121)
     use_cache = os.getenv('SYMPY_USE_CACHE', 'yes').lower()
     executable = get_executable(interpreter)
     python_version = get_interpreter_version_info(interpreter)
     r  = "*Interpreter:*  %s (%s)\n" % (executable, python_version)
     r += "*Architecture:* %s (%s)\n" % (platform_system, architecture)
-    r += "*Cache:*        %s\n" % use_cache
+    if use_cache != 'yes':
+        r += "*Cache:*        **%s**\n" % use_cache
     return r
 
 def get_sphinx_version():

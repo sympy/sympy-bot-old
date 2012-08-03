@@ -13,7 +13,7 @@ from utils.github import (github_add_comment_to_pull_request,
         github_authenticate, github_get_pull_request, github_get_user_info,
         github_list_pull_requests)
 from utils.reviews import reviews_sympy_org_upload
-from utils.testrunner import run_tests
+from utils.testrunner import run_tests, get_hashes, merge_branch
 from utils.url_templates import URLs
 
 default_testcommand = "setup.py test"
@@ -122,9 +122,9 @@ def main():
     for i in ("build_docs", "no_comment", "no_upload", "python2", "python3"):
         if i in config and isinstance(config[i], str):
             val = config[i].strip()
-            if val.lower() in ("true", "y", "yes"):
+            if val.lower() in {"true", "y", "yes"}:
                 config[i] = True
-            elif val.lower() in ("false", "n", "no"):
+            elif val.lower() in {"false", "n", "no"}:
                 config[i] = False
             else:
                 raise ConfigParser.Error("Unable to parse boolean configuration value for %s: %s" % (i, val))
@@ -150,9 +150,9 @@ def main():
         val = getattr(options, i)
         if isinstance(val, str):
             val = val.strip()
-            if val.lower() in ("true", "y", "yes"):
+            if val.lower() in {"true", "y", "yes"}:
                 setattr(options, i, True)
-            elif val.lower() in ("false", "n", "no"):
+            elif val.lower() in {"false", "n", "no"}:
                 setattr(options, i, False)
             else:
                 raise ArgumentTypeError("Unable to parse boolean configuration value for %s: %s" % (i, val))
@@ -246,9 +246,10 @@ def dispatch_reviews(config, urls, **kwargs):
 
     pr_numbers = config.n
     interpreters = config.interpreter
-    python3 = dict( [(i, get_interpreter_version_info(i)[0] == '3') for i in interpreters] )
+    python3 = {i: get_interpreter_version_info(i)[0] == '3' for i in interpreters}
 
     tmpdir = mkdtemp(prefix="sympy-bot-tmp")
+    repo_path = os.path.join(tmpdir, "sympy")
     print "> Working directory: %s" % tmpdir
 
     print "> Cloning %s master" % config.repository
@@ -264,6 +265,11 @@ def dispatch_reviews(config, urls, **kwargs):
     log_dir_base = os.path.join(tmpdir, "out")
     os.mkdir(log_dir_base)
     reviews = {}
+    master_hashes = {}
+    branch_hashes = {}
+    users = {}
+    branches = {}
+
     for n in pr_numbers:
         if len(pr_numbers) == 1:
             log_dir = log_dir_base
@@ -282,11 +288,30 @@ def dispatch_reviews(config, urls, **kwargs):
         user_info = github_get_user_info(urls, user)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
+
+        mergeinfo = merge_branch(repo_url, branch, repo_path,
+                                 config.master_commit, n)
+        if mergeinfo["result"] == 'fetch':
+            # These values shouldn't be used anyway
+            hashinfo = {"master_hash": None, "branch_hash": None}
+        else:
+            hashinfo = get_hashes(repo_path, config.master_commit, n)
+        if not hashinfo:
+            print "> There was an error. Report not uploaded."
+            sys.exit(1)
+
+        branch_hashes[n] = hashinfo['branch_hash']
+        master_hashes[n] = hashinfo['master_hash']
+        users[n] = user
+        branches[n] = branch
+
         print "> Pull request info:"
         print unicode(">     Author: %s" % author).encode('utf8')
         print ">     Repository: %s" % repo_url
         print ">     Branch: %s" % branch
+
         del pull
+        del hashinfo
 
         pull_review = {}
 
@@ -295,8 +320,10 @@ def dispatch_reviews(config, urls, **kwargs):
             # Run tests
             print "> Testing interpreter %s" % i
             command = "%s %s" % (i, config.testcommand)
-            repo_path = os.path.join(tmpdir, "sympy")
-            result = run_tests(repo_url, branch, repo_path, command,
+            if mergeinfo["result"] in {'fetch', 'conflicts'}:
+                result = mergeinfo
+            else:
+                result = run_tests(repo_url, branch, repo_path, command,
                     python3[i], config.master_commit)
             if result["result"] == "error":
                 print "> There was an error. Report not uploaded."
@@ -319,8 +346,6 @@ def dispatch_reviews(config, urls, **kwargs):
                     "interpreter": i,
                     "log": result["log"],
                     "testcommand": config.testcommand,
-                    "master_hash": result["master_hash"],
-                    "branch_hash": result["branch_hash"],
                 }
                 report_url = reviews_sympy_org_upload(data, url_base)
                 print "> Uploaded report for '%s' at: %s" % (i, report_url)
@@ -329,10 +354,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
             pull_review[i] = {
                 "result" : result["result"],
-                "xpassed" : result["xpassed"],
-                "master_hash" : result["master_hash"],
-                "branch_hash" : result["branch_hash"],
-                "url" : report_url
+                "url" : report_url,
             }
             del result
             print
@@ -370,8 +392,6 @@ def dispatch_reviews(config, urls, **kwargs):
                     "interpreter": "None",
                     "log": result["log"],
                     "testcommand": config.build_docs_command,
-                    "master_hash": result["master_hash"],
-                    "branch_hash": result["branch_hash"],
                 }
                 report_url = reviews_sympy_org_upload(data, url_base)
                 print "> Uploaded report for building docs at: %s" % report_url
@@ -380,10 +400,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
             pull_review["build_docs"] = {
                 "result" : result["result"],
-                "xpassed" : result["xpassed"],
-                "master_hash" : result["master_hash"],
-                "branch_hash" : result["branch_hash"],
-                "url" : report_url
+                "url" : report_url,
             }
             del result
             print
@@ -392,18 +409,19 @@ def dispatch_reviews(config, urls, **kwargs):
 
     # Summarize and comment
     for n, pull_review in reviews.iteritems():
-        report_url = dict([(i, result["url"]) for i, result in pull_review.iteritems()])
-        report_status = dict([(i, result["result"]) for i, result in pull_review.iteritems()])
-        xpassed = dict([(i, result["xpassed"]) for i, result in pull_review.iteritems()])
-        master_hash = dict([(i, result["master_hash"]) for i, result in pull_review.iteritems()])
-        branch_hash = dict([(i, result["branch_hash"]) for i, result in pull_review.iteritems()])
+        report_url = {i: result["url"] for i, result in pull_review.iteritems()}
+        report_status = {i: result["result"] for i, result in pull_review.iteritems()}
+        master_hash = master_hashes[n]
+        branch_hash = branch_hashes[n]
 
         # Generate summary
         review = formulate_review(report_status, report_url, master_hash,
-                branch_hash, config.interpreter, config.testcommand,
-                config.build_docs, config.build_docs_command, user)
+            branch_hash, config.interpreter, config.testcommand,
+            config.build_docs, config.build_docs_command, users[n],
+            branches[n], config.master_commit)
 
         print "> Review:"
+        print
         print review
         print
 
@@ -415,88 +433,90 @@ def dispatch_reviews(config, urls, **kwargs):
             print ">     Done."
             print "> Check the results: https://github.com/%s/pull/%d" % (config.repository, n)
 
-def formulate_review(report_status, report_url, master_hash, branch_hash, interpreter, testcommand, build_docs, build_docs_command, user):
+def formulate_review(report_status, report_url, master_hash, branch_hash,
+                     interpreter, testcommand, build_docs, build_docs_command,
+                     user, branch_name, master_commit):
     if user:
         atuser = "@"+user+": "
+        branch_name = user + '/' + branch_name
     else:
         atuser = ""
 
+    if master_commit == 'origin/master':
+        master_name = 'master'
+    else:
+        master_name = "**" + master_commit + "**"
+
+    formatdict = {'branch_hash': branch_hash, 'master_hash': master_hash,
+                  'atuser': atuser, 'master_name': master_name, 'branch_name':
+                  branch_name, 'master_name': master_name}
+
     if any([status == "conflicts" for status in report_status.itervalues()]):
-        summary = """:exclamation: There were merge conflicts; could not test the branch.
+        summary = """:exclamation: There were merge conflicts (could not \
+merge {branch_name} ({branch_hash}) into {master_name} ({master_hash})); could \
+not test the branch.
 
-%sPlease rebase or merge your branch with master.  \
-See the report for a list of the merge conflicts.""" % atuser
+{atuser}Please rebase or merge your branch with master.  \
+See the report for a list of the merge conflicts."""
     elif any([status == "fetch" for status in report_status.itervalues()]):
-        summary = """:x: Could not fetch the branch.
+        summary = """:x: Could not fetch the branch {branch_name}.
 
-%sPlease run the sympy-bot tests again.""" % atuser
+{atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
+sympy-bot tests again."""
     elif any([status == "Failed" for status in report_status.itervalues()]):
-        summary = """:red_circle: There were test failures.
+        summary = """:red_circle: There were test failures (merged \
+{branch_name} ({branch_hash}) into {master_name} ({master_hash})).
 
-%sPlease fix the test failures.""" % atuser
+{atuser}Please fix the test failures."""
     elif all([status == "Passed" for status in report_status.itervalues()]):
-        summary = """:eight_spoked_asterisk: All tests have passed."""
+        summary = """:eight_spoked_asterisk: All tests have passed (merged \
+{branch_name} ({branch_hash}) into {master_name} ({master_hash}))."""
     else:
         raise ValueError("Unknown report_status")
 
 
-    report = """**SymPy Bot Summary:** %s\n\n""" % summary
+    report = """**[SymPy Bot](https://github.com/sympy/sympy-bot) Summary**: %s\n\n""" % summary
 
     for n, i in enumerate(interpreter, start=1):
         status = report_status[i]
-        if status == "conflicts":
-            summary = """:exclamation: There were merge conflicts; could not test the branch."""
-        elif status == "fetch":
-            summary = """:x: Could not fetch the branch."""
-        elif status == "Failed":
-            summary = """:red_circle: There were test failures."""
-        elif status == "Passed":
-            summary = """:eight_spoked_asterisk: All tests have passed."""
-        else:
-            raise ValueError("Unknown report_status")
+        summary = get_summary(status, report_url[i])
 
-        details = get_platform_version(i)
-        if testcommand != default_testcommand:
-            bold = "**"
+        if status in {"conflicts", "fetch"}:
+            # This is irrelevant in this case
+            details = ""
         else:
-            bold = ""
-        details += """*Test command:* %s%s%s\n""" % (bold, testcommand, bold)
-        details += """*master hash*: %s\n""" % master_hash[i]
-        details += """*branch hash*: %s\n""" % branch_hash[i]
+            details = get_platform_version(i)
+            if testcommand != default_testcommand:
+                details += """*Test command:* **%s**\n""" % testcommand
 
-        if len(interpreter) > 1:
-            report += """**Interpreter %d:** %s\n\n""" % (n, summary)
+        report += """**Interpreter %d**: %s\n""" % (n, summary)
         report += "%s\n" % details
-        report += """Test results html report: %s\n\n""" % report_url[i]
 
     if build_docs:
         status = report_status["build_docs"]
-        if status == "conflicts":
-            summary = """:exclamation: There were merge conflicts; could not test the branch."""
-        elif status == "fetch":
-            summary = """:x: Could not fetch the branch."""
-        elif status == "Failed":
-            summary = """:red_circle: There were test failures."""
-        elif status == "Passed":
-            summary = """:eight_spoked_asterisk: All tests have passed."""
-        else:
-            raise ValueError("Unknown report_status")
+        summary = get_summary(status, report_url['build_docs'])
 
         details = get_sphinx_version()
         if build_docs_command != default_build_docs_command:
-            bold = "**"
-        else:
-            bold = ""
-        details += """*Docs build command:* %s%s%s\n""" % (bold, build_docs_command, bold)
-        details += """*master hash*: %s\n""" % master_hash["build_docs"]
-        details += """*branch hash*: %s\n""" % branch_hash["build_docs"]
+            details += """*Docs build command:* **%s**\n""" % build_docs_command
 
-        report += """**Build HTML Docs:** %s\n\n""" % summary
+        report += """**Build HTML Docs:** %s\n""" % summary
         report += """%s\n""" % details
-        report += """Test results html report: %s\n\n""" % report_url["build_docs"]
 
-    report += """Automatic review by [SymPy Bot](https://github.com/sympy/sympy-bot)."""
-    return report
+    return report.format(**formatdict)
+
+def get_summary(status, report_url):
+    if status == "conflicts":
+        summary = """:exclamation: There were [merge conflicts]({report_url}); could not test the branch."""
+    elif status == "fetch":
+        summary = """:x: Could not [fetch the branch]({report_url})."""
+    elif status == "Failed":
+        summary = """:red_circle: There were test [failures]({report_url})."""
+    elif status == "Passed":
+        summary = """:eight_spoked_asterisk: All tests have [passed]({report_url})."""
+    else:
+        raise ValueError("Unknown report_status")
+    return summary.format(report_url=report_url)
 
 if __name__ == "__main__":
     main()
