@@ -6,7 +6,7 @@ import subprocess
 from utils.cmd import cmd, cmd2, CmdException
 
 def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
-              test_command, python3, master_commit):
+              test_command, python3, master_commit, run2to3=True):
     """
     This is a test runner function.
 
@@ -35,8 +35,9 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
             "xpassed": "",
         }
     if python3:
-        use2to3 = os.path.join("bin", "use2to3")
-        cmd("python %s" % use2to3, cwd=master_repo_path)
+        if run2to3:
+            use2to3 = os.path.join("bin", "use2to3")
+            cmd("python %s" % use2to3, cwd=master_repo_path)
         master_repo_path = os.path.join(master_repo_path, "py3k-sympy")
     log, r = cmd2(test_command, cwd=master_repo_path)
     cmd("git checkout master", cwd=master_repo_path)

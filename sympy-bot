@@ -315,6 +315,8 @@ def dispatch_reviews(config, urls, **kwargs):
 
         pull_review = {}
 
+        run2to3 = True
+
         # Iterate over interpreters
         for log_num, i in enumerate(interpreters):
             # Run tests
@@ -324,7 +326,9 @@ def dispatch_reviews(config, urls, **kwargs):
                 result = mergeinfo
             else:
                 result = run_tests(repo_url, branch, repo_path, command,
-                    python3[i], config.master_commit)
+                    python3[i], config.master_commit, run2to3=run2to3)
+                if python3[i]:
+                    run2to3 = False
             if result["result"] == "error":
                 print "> There was an error. Report not uploaded."
                 sys.exit(1)
