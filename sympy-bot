@@ -13,7 +13,7 @@ from utils.github import (github_add_comment_to_pull_request,
         github_authenticate, github_get_pull_request, github_get_user_info,
         github_list_pull_requests)
 from utils.reviews import reviews_sympy_org_upload
-from utils.testrunner import run_tests, get_hashes, merge_branch
+from utils.testrunner import run_tests, get_hashes, merge_branch, fetch_branch
 from utils.url_templates import URLs
 
 default_testcommand = "setup.py test"
@@ -289,16 +289,19 @@ def dispatch_reviews(config, urls, **kwargs):
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
 
-        mergeinfo = merge_branch(repo_url, branch, repo_path,
-                                 config.master_commit, n)
-        if mergeinfo["result"] == 'fetch':
-            # These values shouldn't be used anyway
-            hashinfo = {"master_hash": None, "branch_hash": None}
+        fetchinfo = fetch_branch(repo_url, branch, repo_path, n)
+        if fetchinfo:
+            mergeinfo = {"result": fetchinfo, "log": ""}
+            # This shouldn't be used anyway
+            hashinfo = {"master_hash": "", "branch_hash": ""}
         else:
+            # XXX: This has to go before merge_branch, or else it will return
+            # the merged commit SHA1 instead of the branch SHA1.
             hashinfo = get_hashes(repo_path, config.master_commit, n)
-        if not hashinfo:
-            print "> There was an error. Report not uploaded."
-            sys.exit(1)
+            if not hashinfo:
+                print "> There was an error. Report not uploaded."
+                sys.exit(1)
+            mergeinfo = merge_branch(repo_path, config.master_commit)
 
         branch_hashes[n] = hashinfo['branch_hash']
         master_hashes[n] = hashinfo['master_hash']

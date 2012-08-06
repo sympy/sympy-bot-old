@@ -40,7 +40,6 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
             cmd("python %s" % use2to3, cwd=master_repo_path)
         master_repo_path = os.path.join(master_repo_path, "py3k-sympy")
     log, r = cmd2(test_command, cwd=master_repo_path)
-    cmd("git checkout master", cwd=master_repo_path)
     result["log"] = log
     result["return_code"] = r
 
@@ -72,22 +71,23 @@ def get_hashes(master_repo_path, master_commit, pull_request_number):
             cwd=master_repo_path).strip()
     return result
 
-def merge_branch(pull_request_repo_url, pull_request_branch, master_repo_path,
-                 master_commit, pull_request_number):
-    result = {
-        'result': "",
-        'log': "",
-    }
+def fetch_branch(pull_request_repo_url, pull_request_branch, master_repo_path,
+                 pull_request_number):
 
     try:
         cmd("git fetch %s %s:test_%s" % (pull_request_repo_url,
             pull_request_branch, pull_request_number), echo=True,
             cwd=master_repo_path)
     except CmdException:
-        result["result"] = "fetch"
-        return result
+        return "fetch"
     cmd("git checkout test_%s" % pull_request_number, echo=True, cwd=master_repo_path)
-    # remember the hashes before the merge occurs:
+
+def merge_branch(master_repo_path, master_commit):
+    # Note: this assumes the branch is already checked out
+    result = {
+        'result': "",
+        'log': "",
+    }
 
     merge_log, r = cmd2("git merge %s" % master_commit, cwd=master_repo_path)
     if r != 0:
