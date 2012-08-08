@@ -375,8 +375,8 @@ def dispatch_reviews(config, urls, **kwargs):
                     print "> No tests to run, exiting"
                     exit()
             else:
-                repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
-                result = run_tests(repo_url, branch, repo_path,
+                docs_repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
+                result = run_tests(repo_url, branch, docs_repo_path,
                         config.build_docs_command, False, config.master_commit)
                 if result["result"] == "error":
                     print "There was an error. Report not uploaded."
