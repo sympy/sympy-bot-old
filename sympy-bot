@@ -462,18 +462,15 @@ def formulate_review(report_status, report_url, master_hash, branch_hash,
         summary = """:exclamation: There were merge conflicts (could not \
 merge {branch_name} ({branch_hash}) into {master_name} ({master_hash})); could \
 not test the branch.
-
 {atuser}Please rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts."""
     elif any([status == "fetch" for status in report_status.itervalues()]):
         summary = """:x: Could not fetch the branch {branch_name}.
-
 {atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
 sympy-bot tests again."""
     elif any([status == "Failed" for status in report_status.itervalues()]):
         summary = """:red_circle: There were test failures (merged \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})).
-
 {atuser}Please fix the test failures."""
     elif all([status == "Passed" for status in report_status.itervalues()]):
         summary = """:eight_spoked_asterisk: All tests have passed (merged \
@@ -482,7 +479,7 @@ sympy-bot tests again."""
         raise ValueError("Unknown report_status")
 
 
-    report = """**[SymPy Bot][sympy-bot] Summary**: %s\n\n""" % summary
+    report = """**[SymPy Bot][sympy-bot] Summary**: %s\n""" % summary
 
     for n, i in enumerate(interpreter, start=1):
         status = report_status[i]
@@ -496,8 +493,7 @@ sympy-bot tests again."""
             if testcommand != default_testcommand:
                 details += """*Test command:* **%s**\n""" % testcommand
 
-        report += """**Interpreter %d**: %s\n""" % (n, summary)
-        report += "%s\n" % details
+        report += """**Interpreter %d**: %s:  %s""" % (n, summary, details)
 
     if build_docs:
         status = report_status["build_docs"]
@@ -507,8 +503,7 @@ sympy-bot tests again."""
         if build_docs_command != default_build_docs_command:
             details += """*Docs build command:* **%s**\n""" % build_docs_command
 
-        report += """**Build HTML Docs:** %s\n""" % summary
-        report += """%s\n""" % details
+        report += """**Build HTML Docs:** %s:  %s\n""" % (summary, details)
 
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
