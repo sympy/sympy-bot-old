@@ -493,7 +493,7 @@ sympy-bot tests again."""
             if testcommand != default_testcommand:
                 details += """*Test command:* **%s**\n""" % testcommand
 
-        report += """**Interpreter %d**: %s:  %s""" % (n, summary, details)
+        report += """**Interpreter %d**: %s  %s""" % (n, summary, details)
 
     if build_docs:
         status = report_status["build_docs"]
@@ -503,7 +503,7 @@ sympy-bot tests again."""
         if build_docs_command != default_build_docs_command:
             details += """*Docs build command:* **%s**\n""" % build_docs_command
 
-        report += """**Build HTML Docs:** %s:  %s\n""" % (summary, details)
+        report += """**Build HTML Docs:** %s  %s\n""" % (summary, details)
 
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
@@ -511,13 +511,13 @@ SymPy-Bot GitHub page."'''
 
 def get_summary(status, report_url):
     if status == "conflicts":
-        summary = """:exclamation: There were [merge conflicts]({report_url}); could not test the branch."""
+        summary = """:exclamation: There were [merge conflicts]({report_url}); could not test the branch:"""
     elif status == "fetch":
-        summary = """:x: Could not [fetch the branch]({report_url})."""
+        summary = """:x: Could not [fetch the branch]({report_url}):"""
     elif status == "Failed":
-        summary = """:red_circle: There were test [failures]({report_url})."""
+        summary = """:red_circle: There were test [failures]({report_url}):"""
     elif status == "Passed":
-        summary = """:eight_spoked_asterisk: All tests have [passed]({report_url})."""
+        summary = """:eight_spoked_asterisk: All tests have [passed]({report_url}):"""
     else:
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
