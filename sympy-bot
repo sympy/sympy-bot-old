@@ -17,7 +17,7 @@ from utils.testrunner import run_tests, get_hashes, merge_branch, fetch_branch
 from utils.url_templates import URLs
 
 default_testcommand = "setup.py test"
-default_build_docs_command = "make html-errors"
+default_build_docs_command = "make clean; make html-errors"
 default_interpreter = ["python"]
 default_interpreter3 = ["python3"]
 default_protocol = "https"
