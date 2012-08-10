@@ -146,16 +146,6 @@ def main():
     parser.set_defaults(**config)
     # Parse args
     options = parser.parse_args()
-    for i in ("build_docs", "comment", "no_upload", "python2", "python3"):
-        val = getattr(options, i)
-        if isinstance(val, str):
-            val = val.strip()
-            if val.lower() in ("true", "y", "yes"):
-                setattr(options, i, True)
-            elif val.lower() in ("false", "n", "no"):
-                setattr(options, i, False)
-            else:
-                raise ArgumentTypeError("Unable to parse boolean configuration value for %s: %s" % (i, val))
 
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
@@ -163,6 +153,18 @@ def main():
     if options.command == "list":
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
+        # Set bool args
+        for i in ("build_docs", "comment", "no_upload", "python2", "python3"):
+            val = getattr(options, i)
+            if isinstance(val, str):
+                val = val.strip()
+                if val.lower() in ("true", "y", "yes"):
+                    setattr(options, i, True)
+                elif val.lower() in ("false", "n", "no"):
+                    setattr(options, i, False)
+                else:
+                    raise ArgumentTypeError("Unable to parse boolean configuration value for %s: %s" % (i, val))
+
         # No interpreter/interpreter3 set
         if options.interpreter is None:
             options.interpreter = default_interpreter
