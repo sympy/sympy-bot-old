@@ -225,7 +225,7 @@ def main():
                 save_config_file(username, token)
 
         try:
-            dispatch_reviews(options, urls, username=username, password=password)
+            dispatch_reviews(options, urls, username=username, password=password, token=token)
         except KeyboardInterrupt:
             print "\n> Quitting on signal SIGINT."
             sys.exit(1)
@@ -317,7 +317,7 @@ def load_token_file(path):
         print "> Token file does not exist"
         return
 
-    return token
+    return token.strip()
 
 
 def save_token(token):
@@ -357,6 +357,7 @@ def save_token(token):
 def dispatch_reviews(config, urls, **kwargs):
     username = kwargs.get("username", None)
     password = kwargs.get("password", None)
+    token = kwargs.get("token", None)
 
     pr_numbers = config.n
     interpreters = config.interpreter
@@ -524,8 +525,8 @@ def dispatch_reviews(config, urls, **kwargs):
         # Comment to GitHub
         if not config.no_upload and config.comment:
             print "> Uploading the review to the GitHub pull request ..."
-            github_add_comment_to_pull_request(urls, username, password, n,
-                    review)
+            github_add_comment_to_pull_request(urls, username, password, token,
+                    n, review)
             print ">     Done."
             print "> Check the results: https://github.com/%s/pull/%d" % (config.repository, n)
 
