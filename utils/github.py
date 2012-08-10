@@ -14,11 +14,11 @@ will be kept as a Python variable as long as sympy-bot is running and
 https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
-def generate_token(urls, username, password):
+def generate_token(urls, username, password, name="SymPy Bot"):
     enc_data = json.dumps(
         {
             "scopes" : ["repo"],
-            "note" : "SymPy Bot"
+            "note" : name
             }
     )
 
@@ -179,7 +179,10 @@ def github_authenticate(urls, username, token=None):
     if password:
         generate = raw_input("> Generate API token? [Y/n] ")
         if generate.lower() in ["y", "ye", "yes", ""]:
-            token = generate_token(urls, username, password)
+            name = raw_input("> Name of token on GitHub? [SymPy Bot] ")
+            if name = "":
+                name = "SymPy Bot"
+            token = generate_token(urls, username, password, name=name)
 
     return username, password, token
 
