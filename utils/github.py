@@ -25,6 +25,7 @@ def github_get_pull_request(urls, n):
     Returns pull request 'n'.
     """
     url = urls.single_pull_template % n
+
     timer = 1
     while True:
         try:
@@ -87,7 +88,7 @@ def github_list_pull_requests(urls, numbers_only=False):
         n = pull["number"]
         sys.stdout.write(" %d" % n)
         sys.stdout.flush()
-        pull_info = github_get_pull_request(urls.single_pull_template, n)
+        pull_info = github_get_pull_request(urls, n)
         mergeable = pull_info["mergeable"]
         if pull["head"]["repo"]:
             repo = pull["head"]["repo"]["html_url"]
@@ -98,7 +99,7 @@ def github_list_pull_requests(urls, numbers_only=False):
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
         username = pull["head"]["user"]["login"]
-        user_info = github_get_user_info(urls.user_info_template, username)
+        user_info = github_get_user_info(urls, username)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
         formated_pulls.append((created_at, n, repo, branch, author, mergeable))
