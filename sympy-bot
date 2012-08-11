@@ -460,19 +460,16 @@ def formulate_review(report_status, report_url, master_hash, branch_hash,
                   'atuser': atuser, 'master_name': master_name, 'branch_name':
                   branch_name, 'master_name': master_name}
 
-    skipdetails = False # TODO: Also skip redundant testing above
     if any([status == "conflicts" for status in report_status.itervalues()]):
         summary = """:exclamation: There were merge conflicts (could not \
 merge {branch_name} ({branch_hash}) into {master_name} ({master_hash})); could \
 not test the branch.
 {atuser}Please rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts."""
-        skipdetails = True
     elif any([status == "fetch" for status in report_status.itervalues()]):
         summary = """:x: Could not fetch the branch {branch_name}.
 {atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
 sympy-bot tests again."""
-        skipdetails = True
     elif any([status == "Failed" for status in report_status.itervalues()]):
         summary = """:red_circle: There were test failures (merged \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})).
@@ -486,36 +483,35 @@ sympy-bot tests again."""
 
     report = """**[SymPy Bot][sympy-bot] Summary**: %s\n""" % summary
 
-    if not skipdetails:
-        for n, i in enumerate(interpreter, start=1):
-            status = report_status[i]
-            summary = get_summary(status, report_url[i])
+    for n, i in enumerate(interpreter, start=1):
+        status = report_status[i]
+        summary = get_summary(status, report_url[i])
 
-            if status in {"conflicts", "fetch"}:
-                # This is irrelevant in this case
-                # XXX: We can't use defaultdict here, as it has no effect on
-                # format(**details).  Any way we can get the same sort of thing?
-                details = {
-                    'executable': "",
-                    'python_version': "",
-                    'platform_system': "",
-                    'architecture': "",
-                    'use_cache': "",
-                    'additional_info': "",
-                }
-            else:
-                details = get_platform_version(i)
-                if testcommand != default_testcommand:
-                    details['additional_info'] += "\n*Test command:* **%s**" % testcommand
-                if details['use_cache'] != 'yes':
-                    details['additional_info'] += "\n*Cache:* **%s**" % details['use_cache']
+        if status in {"conflicts", "fetch"}:
+            # This is irrelevant in this case
+            # XXX: We can't use defaultdict here, as it has no effect on
+            # format(**details).  Any way we can get the same sort of thing?
+            details = {
+                'executable': "",
+                'python_version': "",
+                'platform_system': "",
+                'architecture': "",
+                'use_cache': "",
+                'additional_info': "",
+            }
+        else:
+            details = get_platform_version(i)
+            if testcommand != default_testcommand:
+                details['additional_info'] += "\n*Test command:* **%s**" % testcommand
+            if details['use_cache'] != 'yes':
+                details['additional_info'] += "\n*Cache:* **%s**" % details['use_cache']
 
-            details['summary'] = summary
-            details['status'] = status
-            details['symbol'] = status_symbols[status]
-            report += "{symbol} **Python {python_version}**: {summary}{additional_info}\n".format(**details)
+        details['summary'] = summary
+        details['status'] = status
+        details['symbol'] = status_symbols[status]
+        report += "{symbol} **Python {python_version}**: {summary}{additional_info}\n".format(**details)
 
-    if build_docs and not skipdetails:
+    if build_docs:
         details = get_sphinx_version()
         details['status'] = report_status["build_docs"]
         details['symbol'] = status_symbols[details['status']]
