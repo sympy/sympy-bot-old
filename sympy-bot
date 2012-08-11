@@ -507,6 +507,8 @@ sympy-bot tests again."""
                 details = get_platform_version(i)
                 if testcommand != default_testcommand:
                     details['additional_info'] += "\n*Test command:* **%s**" % testcommand
+                if details['use_cache'] != 'yes':
+                    details['additional_info'] += "\n*Cache:* **%s**" % details['use_cache']
 
             details['summary'] = summary
             details['status'] = status
