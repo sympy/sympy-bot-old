@@ -99,9 +99,13 @@ def get_platform_version(interpreter):
     executable = get_executable(interpreter)
     python_version = get_interpreter_version_info(interpreter)
     r  = "%s (%s, %s, %s)\n" % (executable, python_version, platform_system, architecture)
-    if use_cache != 'yes':
-        r += "*Cache:*        **%s**\n" % use_cache
-    return r
+    return {'executable': executable,
+            'python_version': python_version,
+            'platform_system': platform_system,
+            'architecture': architecture,
+            'use_cache': use_cache,
+            'additional_info': "",
+    }
 
 def get_sphinx_version():
     try:
@@ -109,5 +113,5 @@ def get_sphinx_version():
     except ImportError:
         return
     version = sphinx.__version__
-    r = "%s\n" % version
-    return r
+    r = " %s" % version
+    return {'sphinx_version': r, 'additional_info': ""}

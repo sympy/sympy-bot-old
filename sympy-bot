@@ -458,16 +458,19 @@ def formulate_review(report_status, report_url, master_hash, branch_hash,
                   'atuser': atuser, 'master_name': master_name, 'branch_name':
                   branch_name, 'master_name': master_name}
 
+    skipdetails = False # TODO: Also skip redundant testing above
     if any([status == "conflicts" for status in report_status.itervalues()]):
         summary = """:exclamation: There were merge conflicts (could not \
 merge {branch_name} ({branch_hash}) into {master_name} ({master_hash})); could \
 not test the branch.
 {atuser}Please rebase or merge your branch with master.  \
 See the report for a list of the merge conflicts."""
+        skipdetails = True
     elif any([status == "fetch" for status in report_status.itervalues()]):
         summary = """:x: Could not fetch the branch {branch_name}.
 {atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
 sympy-bot tests again."""
+        skipdetails = True
     elif any([status == "Failed" for status in report_status.itervalues()]):
         summary = """:red_circle: There were test failures (merged \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})).
@@ -481,43 +484,64 @@ sympy-bot tests again."""
 
     report = """**[SymPy Bot][sympy-bot] Summary**: %s\n""" % summary
 
-    for n, i in enumerate(interpreter, start=1):
-        status = report_status[i]
-        summary = get_summary(status, report_url[i])
+    if not skipdetails:
+        for n, i in enumerate(interpreter, start=1):
+            status = report_status[i]
+            summary = get_summary(status, report_url[i])
 
-        if status in {"conflicts", "fetch"}:
-            # This is irrelevant in this case
-            details = ""
-        else:
-            details = get_platform_version(i)
-            if testcommand != default_testcommand:
-                details += """*Test command:* **%s**\n""" % testcommand
+            if status in {"conflicts", "fetch"}:
+                # This is irrelevant in this case
+                # XXX: We can't use defaultdict here, as it has no effect on
+                # format(**details).  Any way we can get the same sort of thing?
+                details = {
+                    'executable': "",
+                    'python_version': "",
+                    'platform_system': "",
+                    'architecture': "",
+                    'use_cache': "",
+                    'additional_info': "",
+                }
+            else:
+                details = get_platform_version(i)
+                if testcommand != default_testcommand:
+                    details['additional_info'] += "\n*Test command:* **%s**" % testcommand
 
-        report += """**Interpreter %d**: %s  %s""" % (n, summary, details)
+            details['summary'] = summary
+            details['status'] = status
+            details['symbol'] = status_symbols[status]
+            report += "{symbol} **Python {python_version}**: {summary}{additional_info}\n".format(**details)
 
-    if build_docs:
-        status = report_status["build_docs"]
-        summary = get_summary(status, report_url['build_docs'])
-
+    if build_docs and not skipdetails:
         details = get_sphinx_version()
-        if build_docs_command != default_build_docs_command:
-            details += """*Docs build command:* **%s**\n""" % build_docs_command
+        details['status'] = report_status["build_docs"]
+        details['symbol'] = status_symbols[details['status']]
+        details['summary'] = get_summary(details['status'], report_url['build_docs'])
 
-        report += """**Build HTML Docs:** %s  %s\n""" % (summary, details)
+        if build_docs_command != default_build_docs_command:
+            details['additional_info'] += "\n*Docs build command:* **%s**" % build_docs_command
+
+        report += "{symbol}**Sphinx {sphinx_version}:** {summary}{additional_info}\n".format(**details)
 
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
     return report.format(**formatdict)
 
+status_symbols = {
+    "conflicts": ":exclamation:",
+    "fetch": ":x:",
+    "Failed": ":red_circle:",
+    "Passed": ":eight_spoked_asterisk:",
+}
+
 def get_summary(status, report_url):
     if status == "conflicts":
-        summary = """:exclamation: There were [merge conflicts]({report_url}); could not test the branch:"""
+        summary = "There were [merge conflicts]({report_url}); could not test the branch."
     elif status == "fetch":
-        summary = """:x: Could not [fetch the branch]({report_url}):"""
+        summary = "Could not [fetch the branch]({report_url})."
     elif status == "Failed":
-        summary = """:red_circle: There were test [failures]({report_url}):"""
+        summary = "[fail]({report_url})"
     elif status == "Passed":
-        summary = """:eight_spoked_asterisk: All tests have [passed]({report_url}):"""
+        summary = "[pass]({report_url})"
     else:
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
