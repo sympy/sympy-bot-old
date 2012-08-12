@@ -99,6 +99,9 @@ def main():
     parser_review.add_argument("-R", "--repository", type=str, default="sympy/sympy",
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
+    parser_review.add_argument("--copy-py3k-sympy", nargs="?", const=True,
+        default=False, help="Copy the py3k-sympy directory from the reference "
+        "directory.  This requires -r.")
 
     parser_list = subparsers.add_parser("list",
         description="Lists available pull requests",
@@ -114,12 +117,13 @@ def main():
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
 
+    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2", "python3", "copy_py3k_sympy",}
     # Initial parse to print help
     options = parser.parse_args()
     # Load configuration and set defaults from it
     config = load_config_file(options.profile)
     # Parse args that should be booleans, but come as strings from ConfigParser
-    for i in ("build_docs", "no_comment", "no_upload", "python2", "python3"):
+    for i in boolargs:
         if i in config and isinstance(config[i], str):
             val = config[i].strip()
             if val.lower() in {"true", "y", "yes"}:
@@ -147,6 +151,9 @@ def main():
     # Parse args
     options = parser.parse_args()
 
+    if options.copy_py3k_sympy and not options.reference:
+        parser.error("--copy-py3k-sympy requires --reference")
+
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
@@ -154,8 +161,8 @@ def main():
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
         # Set bool args
-        for i in ("build_docs", "comment", "no_upload", "python2", "python3"):
-            val = getattr(options, i)
+        for i in boolargs:
+            val = getattr(options, i, None)
             if isinstance(val, str):
                 val = val.strip().lower()
                 if val in {"true", "y", "yes"}:
@@ -259,6 +266,13 @@ def dispatch_reviews(config, urls, **kwargs):
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
         cmd("git clone --reference %s git://github.com/%s.git" % (reference, config.repository),
                 cwd=tmpdir)
+        if config.python3 and config.copy_py3k_sympy:
+            print "> Copying py3k-sympy directory"
+            try:
+                cmd("cp -R %s/py3k-sympy %s/sympy/" % (reference, tmpdir))
+            except CmdException:
+                print "> Could not copy the py3k-sympy directory from %s. It probably doesn't exist." % reference
+                print "  Run ./bin/2to3 in that directory to generate this directory, which will make this go much faster."
     else:
         cmd("git clone git://github.com/%s.git" % config.repository,
                 cwd=tmpdir)
