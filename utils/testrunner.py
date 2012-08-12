@@ -6,7 +6,7 @@ import subprocess
 from utils.cmd import cmd, cmd2, CmdException
 
 def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
-        test_command, python3, master_commit):
+              test_command, python3, master_commit, run2to3=True):
     """
     This is a test runner function.
 
@@ -33,41 +33,13 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
     result = {
             "log": "",
             "xpassed": "",
-            "master_hash": "",
-            "branch_hash": "",
         }
-    try:
-        cmd("git fetch %s %s:test" % (pull_request_repo_url,
-            pull_request_branch), echo=True, cwd=master_repo_path)
-    except CmdException:
-        result["result"] = "fetch"
-        return result
-    cmd("git checkout test", echo=True, cwd=master_repo_path)
-    # remember the hashes before the merge occurs:
-    try:
-        result["master_hash"] = cmd("git rev-parse %s" % master_commit,
-                capture=True, cwd=master_repo_path).strip()
-    except CmdException:
-        print "Could not parse commit %s." % master_commit
-        result["result"]= "error"
-        return result
-    result["branch_hash"] = cmd("git rev-parse test", capture=True,
-            cwd=master_repo_path).strip()
-
-    merge_log, r = cmd2("git merge %s" % master_commit, cwd=master_repo_path)
-    if r != 0:
-        conflicts = cmd("git --no-pager diff", capture=True,
-                cwd=master_repo_path)
-        result["result"] = "conflicts"
-        result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
-        cmd("git merge --abort && git checkout master && git branch -D test", cwd=master_repo_path)
-        return result
     if python3:
-        use2to3 = os.path.join("bin", "use2to3")
-        cmd("python %s" % use2to3, cwd=master_repo_path)
+        if run2to3:
+            use2to3 = os.path.join("bin", "use2to3")
+            cmd("python %s" % use2to3, cwd=master_repo_path)
         master_repo_path = os.path.join(master_repo_path, "py3k-sympy")
     log, r = cmd2(test_command, cwd=master_repo_path)
-    cmd("git checkout master && git branch -D test", cwd=master_repo_path)
     result["log"] = log
     result["return_code"] = r
 
@@ -86,3 +58,42 @@ def get_xpassed_info_from_log(log):
         lines = m.group('xpassed')
         return lines.splitlines()
     return []
+
+def get_hashes(master_repo_path, master_commit, pull_request_number):
+    result = {}
+    try:
+        result["master_hash"] = cmd("git rev-parse %s" % master_commit,
+                capture=True, cwd=master_repo_path).strip()
+    except CmdException:
+        print "Could not parse commit %s." % master_commit
+        return None
+    result["branch_hash"] = cmd("git rev-parse test_%s" % pull_request_number, capture=True,
+            cwd=master_repo_path).strip()
+    return result
+
+def fetch_branch(pull_request_repo_url, pull_request_branch, master_repo_path,
+                 pull_request_number):
+
+    try:
+        cmd("git fetch %s %s:test_%s" % (pull_request_repo_url,
+            pull_request_branch, pull_request_number), echo=True,
+            cwd=master_repo_path)
+    except CmdException:
+        return "fetch"
+    cmd("git checkout test_%s" % pull_request_number, echo=True, cwd=master_repo_path)
+
+def merge_branch(master_repo_path, master_commit):
+    # Note: this assumes the branch is already checked out
+    result = {
+        'result': "",
+        'log': "",
+    }
+
+    merge_log, r = cmd2("git merge %s" % master_commit, cwd=master_repo_path)
+    if r != 0:
+        conflicts = cmd("git --no-pager diff", capture=True,
+                cwd=master_repo_path)
+        result["result"] = "conflicts"
+        result["log"] = merge_log + "\nLIST OF CONFLICTS\n" + conflicts
+        cmd("git merge --abort && git checkout master", cwd=master_repo_path)
+    return result
