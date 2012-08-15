@@ -14,6 +14,18 @@ will be kept as a Python variable as long as sympy-bot is running and
 https to authenticate with GitHub, otherwise not saved anywhere else:\
 """
 
+def generate_token(urls, username, password, name="SymPy Bot"):
+    enc_data = json.dumps(
+        {
+            "scopes" : ["repo"],
+            "note" : name
+            }
+    )
+
+    url = urls.authorize_url
+    rep = _query(url, username=username, password=password, data=enc_data)
+    return rep["token"]
+
 def github_get_pull_request_all(urls):
     """
     Returns all github pull requests.
@@ -52,13 +64,13 @@ def github_get_user_info(urls, username):
 
     return user_info
 
-def github_check_authentication(urls, username, password):
+def github_check_authentication(urls, username, password, token):
     """
     Checks that username & password is valid.
     """
-    _query(urls.api_url, username, password)
+    _query(urls.api_url, username, password, token)
 
-def github_add_comment_to_pull_request(urls, username, password, n, comment):
+def github_add_comment_to_pull_request(urls, username, password, token, n, comment):
     """
     Adds a 'comment' to the pull request 'n'.
 
@@ -70,7 +82,7 @@ def github_add_comment_to_pull_request(urls, username, password, n, comment):
         }
     )
     url = urls.issue_comment_template % n
-    response = _query(url, username, password, enc_comment)
+    response = _query(url, username, password, token, enc_comment)
     assert response["body"] == comment
 
 def github_list_pull_requests(urls, numbers_only=False):
@@ -134,56 +146,72 @@ def github_list_pull_requests(urls, numbers_only=False):
         print
     return nonmergeable, mergeable_list
 
-def github_authenticate(urls, user, password):
-    def get_password(password=None):
-        while True:
-            if password:
-                try:
-                    print "> Checking username and password ..."
-                    github_check_authentication(urls, username, password)
-                except AuthenticationFailed:
-                    print ">     Authentication failed."
-                else:
-                    print ">     OK."
-                    return password
-            password = getpass("Password: ")
-
-    if user:
-        username = user
+def github_authenticate(urls, username, token=None):
+    if username:
         print "> Authenticating as %s" % username
     else:
         print _login_message
         username = raw_input("Username: ")
 
+    authenticated = False
+
+    if token:
+        print "> Authenticating using token"
+        try:
+            github_check_authentication(urls, username, None, token)
+        except AuthenticationFailed:
+            print ">     Authentication failed"
+        else:
+            print ">     OK"
+            password = None
+            authenticated = True
+
+    while not authenticated:
+        password = getpass("Password: ")
+        try:
+            print "> Checking username and password ..."
+            github_check_authentication(urls, username, password, None)
+        except AuthenticationFailed:
+            print ">     Authentication failed"
+        else:
+            print ">     OK."
+            authenticated = True
+
     if password:
-        password = get_password(password)
-    else:
-        password = get_password()
+        generate = raw_input("> Generate API token? [Y/n] ")
+        if generate.lower() in ["y", "ye", "yes", ""]:
+            name = raw_input("> Name of token on GitHub? [SymPy Bot] ")
+            if name == "":
+                name = "SymPy Bot"
+            token = generate_token(urls, username, password, name=name)
 
-    return username, password
+    return username, password, token
 
-def _query(url, username="", password="", data=""):
+def _query(url, username=None, password=None, token=None, data=""):
     """
     Query github API,
     if username and password are presented, then the query is executed from the user account
     """
     request = urllib2.Request(url)
     # Add authentication headers to request, if username and password presented
-    if username is not "" and password is not "":
-        base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
-        request.add_header("Authorization", "Basic %s" % base64string)
+    if username:
+        if token:
+            request.add_header("Authorization", "bearer %s" % token)
+        elif password:
+            base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
+            request.add_header("Authorization", "Basic %s" % base64string)
     if data is not "":
         request.add_data(data)
     try:
         http_response = urllib2.urlopen(request)
         response_body = json.load(http_response)
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         # Auth exception
         if e.code == 401:
             raise AuthenticationFailed("invalid username or password")
         # Other exceptions
         raise urllib2.HTTPError(e.filename, e.code, e.msg, None, None)
-    except ValueError, e:
+    except ValueError as e:
         # If auth was successful
         if http_response.code in (204, 302):
             return []
