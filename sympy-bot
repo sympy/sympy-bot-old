@@ -221,17 +221,26 @@ def main():
         else:
             username = password = token = None
 
-        if username:
+        if password and token:
+            save_token = raw_input("> Save token to file? [Y/n] ")
+            if save_token.lower() in ["y", "ye", "yes", ""]:
+                token_file = save_token_file(token)
+            else:
+                token_file = None
+
             if config:
-                if password and token:
-                    create_config = raw_input("> Update config file? [Y/n] ")
+                print "> WARNING: Automatically updating config file will overwrite comments"
+                print "> Otherwise you can manually add the following to your config file:"
+                if token_file:
+                    print "token_file = %s" % token_file
                 else:
-                    create_config = "no"
+                    print "token = %s" % token
+                create_config = raw_input("> Automatically update config file? [Y/n] ")
             else:
                 create_config = raw_input("> Create config file? [Y/n] ")
 
             if create_config.lower() in ["y", "ye", "yes", ""]:
-                save_config_file(username, token)
+                save_config_file(username, token, token_file)
 
         try:
             dispatch_reviews(options, urls, username=username, password=password, token=token)
@@ -274,7 +283,7 @@ def load_config_file(profile):
                 return items
     return {}
 
-def save_config_file(username, token):
+def save_config_file(username, token, token_file):
     filename = "~/.sympy/sympy-bot.conf"
     filename = os.path.expanduser(filename)
     filename = os.path.abspath(filename)
@@ -292,9 +301,10 @@ def save_config_file(username, token):
 
     parser.set(default_section.upper(), 'user', username)
 
-    if token:
-        opt, val = save_token(token)
-        parser.set(default_section.upper(), opt, val)
+    if token_file:
+        parser.set(default_section.upper(), "token_file", token_file)
+    elif token:
+        parser.set(default_section.upper(), "token", token)
 
     try:
         if not os.path.isdir(folder):
@@ -329,39 +339,28 @@ def load_token_file(path):
     return token.strip()
 
 
-def save_token(token):
-    filename = "~/.sympy/sympy-bot.conf"
-    filename = os.path.expanduser(filename)
-    filename = os.path.abspath(filename)
+def save_token_file(token):
+    token_file = raw_input("> Enter token file location [~/.sympy/token] ")
+    token_file = token_file or "~/.sympy/token"
 
-    folder, _ = os.path.split(filename)
+    token_file_expand = os.path.expanduser(token_file)
+    token_file_expand = os.path.abspath(token_file_expand)
+    token_folder, _ = os.path.split(token_file_expand)
 
-    output_token = raw_input("> Create separate file for token? [Y/n] ")
-    if output_token.lower() in ["y", "yes", ""]:
-        token_file = raw_input("> Enter token file location [~/.sympy/token] ")
-        token_file = token_file or "~/.sympy/token"
+    try:
+        if not os.path.isdir(token_folder):
+            os.mkdir(token_folder, 0o700)
+        with open(token_file_expand, 'w') as f:
+            f.write(token + '\n')
+        os.chmod(token_file_expand, stat.S_IREAD | stat.S_IWRITE)
+    except OSError as e:
+        print "> Unable to create folder for token file: ", e
+        return
+    except IOError as e:
+        print "> Unable to save token file: ", e
+        return
 
-        opt, val = "token_file", token_file
-
-        token_file = os.path.expanduser(token_file)
-        token_file = os.path.abspath(token_file)
-        token_folder, _ = os.path.split(token_file)
-        try:
-            if not os.path.isdir(token_folder):
-                os.mkdir(token_folder, 0o700)
-            with open(token_file, 'w') as f:
-                f.write(token + '\n')
-            os.chmod(token_file, stat.S_IREAD | stat.S_IWRITE)
-        except OSError as e:
-            print "> Unable to create folder for token file: ", e
-            return
-        except IOError as e:
-            print "> Unable to save token file: ", e
-            return
-    else:
-        opt, val = "token", token
-
-    return opt, val
+    return token_file
 
 def dispatch_reviews(config, urls, **kwargs):
     username = kwargs.get("username", None)

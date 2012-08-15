@@ -181,7 +181,7 @@ def github_authenticate(urls, username, token=None):
         generate = raw_input("> Generate API token? [Y/n] ")
         if generate.lower() in ["y", "ye", "yes", ""]:
             name = raw_input("> Name of token on GitHub? [SymPy Bot] ")
-            if name = "":
+            if name == "":
                 name = "SymPy Bot"
             token = generate_token(urls, username, password, name=name)
 
