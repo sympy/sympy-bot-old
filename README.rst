@@ -70,10 +70,10 @@ Configuration
 You can configure SymPy bot to remember your GitHub credentials, use an
 existing clone of sympy and run interpreters under different profiles. This is
 done in the ``~/.sympy/sympy-bot.conf`` file. The configuration supports
-multiple profiles, but will always read in the [default] profile, so you should
+multiple profiles, but will always read in the [DEFAULT] profile, so you should
 start your configuration with your GitHub credentials in the default profile::
 
-    [default]
+    [DEFAULT]
     user = username
 
 The first time you run sympy-bot and need to authenticate with GitHub, you will
