@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import shutil
 import stat
 import sys
 import os
@@ -381,12 +382,17 @@ def dispatch_reviews(config, urls, **kwargs):
         cmd("git clone --reference %s git://github.com/%s.git" % (reference, config.repository),
                 cwd=tmpdir)
         if config.python3 and config.copy_py3k_sympy:
-            print "> Copying py3k-sympy directory"
-            try:
-                cmd("cp -R %s/py3k-sympy %s/sympy/" % (reference, tmpdir))
-            except CmdException:
-                print "> Could not copy the py3k-sympy directory from %s. It probably doesn't exist." % reference
-                print "  Run ./bin/2to3 in that directory to generate this directory, which will make this go much faster."
+            py3k_src = os.path.join(reference, "py3k-sympy")
+            py3k_dst = os.path.join(repo_path, "py3k-sympy")
+            if os.path.exists(py3k_src):
+                print "> Copying py3k-sympy directory"
+                try:
+                    shutil.copytree(py3k_src, py3k_dst)
+                except shutil.Error as e:
+                    print "> Could not copy the py3k-sympy directory from %s: %s" % (reference, e)
+            else:
+                print "> py3k-sympy directory does not exist in %s" % reference
+                print "> Run ./bin/2to3 in that directory to generate this directory, which will make this go much faster."
     else:
         cmd("git clone git://github.com/%s.git" % config.repository,
                 cwd=tmpdir)
