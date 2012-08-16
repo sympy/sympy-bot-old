@@ -643,7 +643,7 @@ sympy-bot tests again."""
         details['summary'] = summary
         details['status'] = status
         details['symbol'] = status_symbols[status]
-        report += "{symbol} **Python {python_version}**: {summary}{additional_info}\n".format(**details)
+        report += "{symbol} **{python_type} {python_version}**: {summary}{additional_info}\n".format(**details)
 
     if build_docs:
         details = get_sphinx_version()

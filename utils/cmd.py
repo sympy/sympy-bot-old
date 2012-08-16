@@ -67,6 +67,22 @@ def get_interpreter_version_info(interpreter):
 
     return ouput.strip()
 
+def get_interpreter_type(interpreter):
+    # TODO: support other alternate pythons
+    code = """
+import sys
+if hasattr(sys, 'pypy_version_info'):
+    print('PyPy %s.%s.%s-%s-%s;' % sys.pypy_version_info[:])
+else:
+    print('Python')
+    """
+    cmd = '%s -c "%s"' % (interpreter, code)
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+    ouput = p.stdout.read()
+
+    return ouput.strip()
+
 def get_executable(interpreter):
     path = os.environ['PATH']
     paths = path.split(os.pathsep)
@@ -98,6 +114,7 @@ def get_platform_version(interpreter):
     use_cache = os.getenv('SYMPY_USE_CACHE', 'yes').lower()
     executable = get_executable(interpreter)
     python_version = get_interpreter_version_info(interpreter)
+    python_type = get_interpreter_type(interpreter)
     r  = "%s (%s, %s, %s)\n" % (executable, python_version, platform_system, architecture)
     return {'executable': executable,
             'python_version': python_version,
@@ -105,6 +122,7 @@ def get_platform_version(interpreter):
             'architecture': architecture,
             'use_cache': use_cache,
             'additional_info': "",
+            'python_type': python_type,
     }
 
 def get_sphinx_version():
