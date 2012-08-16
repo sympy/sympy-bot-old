@@ -605,12 +605,12 @@ See the report for a list of the merge conflicts."""
 {atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
 sympy-bot tests again."""
     elif any([status == "Failed" for status in report_status.itervalues()]):
-        summary = """:red_circle: There were test failures (merged \
-{branch_name} ({branch_hash}) into {master_name} ({master_hash})).
+        summary = """:red_circle: Failed after merging \
+{branch_name} ({branch_hash}) into {master_name} ({master_hash}).
 {atuser}Please fix the test failures."""
     elif all([status == "Passed" for status in report_status.itervalues()]):
-        summary = """:eight_spoked_asterisk: All tests have passed (merged \
-{branch_name} ({branch_hash}) into {master_name} ({master_hash}))."""
+        summary = """:eight_spoked_asterisk: Passed after merging \
+{branch_name} ({branch_hash}) into {master_name} ({master_hash})."""
     else:
         raise ValueError("Unknown report_status")
 
