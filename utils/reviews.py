@@ -49,7 +49,7 @@ def reviews_sympy_org_upload(data, url_base):
                 # This happens for example when the server is over quota, see
                 # https://github.com/sympy/sympy-bot/issues/110
                 print "Server problem at %s, retrying in %d seconds..." % (url_base, timer)
-        except urllib2.HTTPError:
+        except (urllib2.HTTPError, urllib2.URLError):
             # The server is down or we cannot connect to the internet
             print "Error while accessing %s, retrying in %d seconds..." % (url_base, timer)
 
