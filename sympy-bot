@@ -632,6 +632,7 @@ sympy-bot tests again."""
                 'architecture': "",
                 'use_cache': "",
                 'additional_info': "",
+                'python_type': "",
             }
         else:
             details = get_platform_version(i)
