@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import codecs
 import shutil
 import stat
 import sys
@@ -475,7 +476,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
             # Log results
             log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
-            with open(log_file, "w") as log:
+            with codecs.open(log_file, "w", encoding="utf8") as log:
                 log.write(result["log"])
             print "> Results logged to %s" % log_file
 
@@ -521,7 +522,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
             # Log results
             log_file = os.path.join(log_dir, "docs")
-            with open(log_file, "w") as log:
+            with codecs.open(log_file, "w", encoding="utf8") as log:
                 log.write(result["log"])
             print "> Results logged to %s" % log_file
 
