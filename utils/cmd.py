@@ -26,6 +26,8 @@ def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
     p = subprocess.Popen(s, shell=True, stdout=out, stderr=subprocess.STDOUT,
             cwd=cwd)
     output = p.communicate()[0]
+    if output:
+        output = output.decode(sys.stdout.encoding)
     r = p.returncode
     if r not in ok_exit_code_list:
         raise CmdException("Command '%s' failed with err=%d. %s" % (s, r, output))
@@ -50,6 +52,7 @@ def cmd2(cmd, cwd=None):
         sys.stdout.write(char)
         sys.stdout.flush()
     log = log + p.communicate()[0]
+    log = log.decode(sys.stdout.encoding)
     r = p.returncode
 
     return log, r
