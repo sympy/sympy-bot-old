@@ -551,8 +551,7 @@ def dispatch_reviews(config, urls, **kwargs):
         reviews[n] = pull_review
         print "> View logs for PR %d in: %s" % (n, log_dir_base)
 
-    # Summarize and comment
-    for n, pull_review in reviews.iteritems():
+        # Summarize and comment
         report_url = {i: result["url"] for i, result in pull_review.iteritems()}
         report_status = {i: result["result"] for i, result in pull_review.iteritems()}
         master_hash = master_hashes[n]
