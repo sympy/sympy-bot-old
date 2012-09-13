@@ -110,7 +110,7 @@ def github_list_pull_requests(urls, numbers_only=False):
         created_at = pull["created_at"]
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
-        username = pull["head"]["user"]["login"]
+        username = pull["user"]["login"]
         user_info = github_get_user_info(urls, username)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
