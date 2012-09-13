@@ -52,7 +52,7 @@ def main():
         formatter_class=ArgumentDefaultsHelpFormatter)
     parser_review.add_argument("n", nargs="+",
         help="Numbers of pull requests to review. You can also specify 'all' "
-        "or 'mergable' pull requests.")
+        "or 'mergeable' pull requests.")
     parser_review.add_argument("--profile", type=str, default=default_section,
         help="Configuration file profile to use, see README for information "
         "about setting up profiles")
@@ -203,12 +203,12 @@ def main():
 
         options.interpreter = interpreter
 
-        if options.n == "mergable":
+        if "mergable" in options.n or "mergeable" in options.n:
             print "> Reviewing all *mergeable* pull requests"
             print
             nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
             options.n = mergeable
-        elif options.n == "all":
+        elif "all" in options.n:
             print "> Reviewing *all* pull requests"
             print
             nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
