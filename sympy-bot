@@ -162,15 +162,15 @@ def main():
     # Parse args
     options = parser.parse_args()
 
-    if options.copy_py3k_sympy and not options.reference:
-        parser.error("--copy-py3k-sympy requires --reference")
-
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
     if options.command == "list":
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
+        if options.copy_py3k_sympy and not options.reference:
+             parser.error("--copy-py3k-sympy requires --reference")
+
         # Set bool args
         for i in boolargs:
             val = getattr(options, i, None)
