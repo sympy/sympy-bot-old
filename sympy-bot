@@ -99,9 +99,10 @@ def main():
         "used for authentication")
     parser_review.add_argument("--token-file", type=str, help="File "
         "containing GitHub API token used for authentication")
-    parser_review.add_argument("-m", "--master-commit", type=str,
-        default="origin/master", metavar="COMMIT", help="Commit to use as "
-        "master for merging, use 'HEAD' to not merge")
+    parser_review.add_argument("-m", "--merge-commit", type=str,
+        default=None, metavar="COMMIT", help="Commit to use as "
+        "master for merging, which by default is determined from "
+        "the pull request's target; use 'HEAD' to not merge")
     parser_review.add_argument("-p", "--protocol", type=str,
         default=default_protocol, choices=["https", "git"], help="Protocol "
         "for communicating with GitHub")
@@ -201,12 +202,12 @@ def main():
 
         options.interpreter = interpreter
 
-        if options.n == ["mergeable"]:
+        if "mergable" in options.n or "mergeable" in options.n:
             print "> Reviewing all *mergeable* pull requests"
             print
             nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
             options.n = mergeable
-        elif options.n == ["all"]:
+        elif "all" in options.n:
             print "> Reviewing *all* pull requests"
             print
             nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
@@ -419,6 +420,7 @@ def dispatch_reviews(config, urls, **kwargs):
         print "> Reviewing pull request #%d" % n
         repo_url = pull["head"]["repo"]["html_url"]
         repo_url = repo_url.replace(default_protocol, config.protocol)
+        merge_commit = config.merge_commit or "origin/" + pull["base"]["ref"]
         branch = pull["head"]["ref"]
         user = pull["head"]["user"].get("login")
         user_info = github_get_user_info(urls, user)
@@ -433,11 +435,11 @@ def dispatch_reviews(config, urls, **kwargs):
         else:
             # XXX: This has to go before merge_branch, or else it will return
             # the merged commit SHA1 instead of the branch SHA1.
-            hashinfo = get_hashes(repo_path, config.master_commit, n)
+            hashinfo = get_hashes(repo_path, merge_commit, n)
             if not hashinfo:
                 print "> There was an error. Report not uploaded."
                 sys.exit(1)
-            mergeinfo = merge_branch(repo_path, config.master_commit)
+            mergeinfo = merge_branch(repo_path, merge_commit)
 
         branch_hashes[n] = hashinfo['branch_hash']
         master_hashes[n] = hashinfo['master_hash']
@@ -465,7 +467,7 @@ def dispatch_reviews(config, urls, **kwargs):
                 result = mergeinfo
             else:
                 result = run_tests(repo_url, branch, repo_path, command,
-                    python3[i], config.master_commit, run2to3=run2to3)
+                    python3[i], merge_commit, run2to3=run2to3)
                 if python3[i]:
                     run2to3 = False
             if result["result"] == "error":
@@ -513,7 +515,7 @@ def dispatch_reviews(config, urls, **kwargs):
             else:
                 docs_repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
                 result = run_tests(repo_url, branch, docs_repo_path,
-                        config.build_docs_command, False, config.master_commit)
+                        config.build_docs_command, False, merge_commit)
                 if result["result"] == "error":
                     print "There was an error. Report not uploaded."
                     sys.exit(1)
@@ -560,7 +562,7 @@ def dispatch_reviews(config, urls, **kwargs):
         review = formulate_review(report_status, report_url, master_hash,
             branch_hash, config.interpreter, config.testcommand,
             config.build_docs, config.build_docs_command, users[n],
-            branches[n], config.master_commit)
+            branches[n], merge_commit)
 
         print "> Review:"
         print
@@ -577,17 +579,17 @@ def dispatch_reviews(config, urls, **kwargs):
 
 def formulate_review(report_status, report_url, master_hash, branch_hash,
                      interpreter, testcommand, build_docs, build_docs_command,
-                     user, branch_name, master_commit):
+                     user, branch_name, merge_commit):
     if user:
         atuser = "@"+user+": "
         branch_name = user + '/' + branch_name
     else:
         atuser = ""
 
-    if master_commit == 'origin/master':
+    if merge_commit == 'origin/master':
         master_name = 'master'
     else:
-        master_name = "**" + master_commit + "**"
+        master_name = "**" + merge_commit + "**"
 
     formatdict = {'branch_hash': branch_hash, 'master_hash': master_hash,
                   'atuser': atuser, 'master_name': master_name, 'branch_name':
