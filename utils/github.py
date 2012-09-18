@@ -93,7 +93,7 @@ def github_list_pull_requests(urls, numbers_only=False):
     and "mergeable" are lists of the pull requests numbers.
     """
     pulls = github_get_pull_request_all(urls)
-    formated_pulls = []
+    formatted_pulls = []
     print "Total pull count", len(pulls)
     sys.stdout.write("Processing pulls...")
     for pull in pulls:
@@ -114,35 +114,45 @@ def github_list_pull_requests(urls, numbers_only=False):
         user_info = github_get_user_info(urls, username)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
-        formated_pulls.append((created_at, n, repo, branch, author, mergeable))
-    formated_pulls.sort(key=lambda x: x[0])
+        branch_against = pull["base"]["ref"]
+        formatted_pulls.append({
+            'created_at': created_at,
+            'n': n,
+            'repo': repo,
+            'branch': branch,
+            'author': author,
+            'mergeable': mergeable,
+            'branch_against': branch_against,
+        })
+    formatted_pulls.sort(key=lambda x: x['created_at'])
     print "\nPatches that cannot be merged without conflicts:"
     nonmergeable = []
-    for created_at, n, repo, branch, author, mergeable in formated_pulls:
-        if mergeable: continue
-        nonmergeable.append(int(n))
+    for pull in formatted_pulls:
+        if pull['mergeable']: continue
+        nonmergeable.append(int(pull['n']))
         if numbers_only:
-            print n,
+            print pull['n'],
         else:
-            print "#%03d: %s %s" % (n, repo, branch)
-            print unicode("      Author   : %s" % author).encode('utf8')
-            print "      Date     : %s" % time.ctime(created_at)
+            print "#%03d: %s %s (against %s)" % (pull['n'], pull['repo'], pull['branch'], pull['branch_against'])
+            print unicode("      Author   : %s" % pull['author']).encode('utf8')
+            print "      Date     : %s" % time.ctime(pull['created_at'])
     if numbers_only:
         print
     print
     print "-"*80
     print "Patches that can be merged without conflicts:"
     mergeable_list = []
-    for last_change, n, repo, branch, author, mergeable in formated_pulls:
-        if not mergeable: continue
-        mergeable_list.append(int(n))
+    for pull in formatted_pulls:
+        if not pull['mergeable']: continue
+        mergeable_list.append(int(pull['n']))
         if numbers_only:
-            print n,
+            print pull['n'],
         else:
-            print "#%03d: %s %s" % (n, repo, branch)
-            print unicode("      Author   : %s" % author).encode('utf8')
-            print "      Date     : %s" % time.ctime(last_change)
+            print "#%03d: %s %s (against %s)" % (pull['n'], pull['repo'], pull['branch'], pull['branch_against'])
+            print unicode("      Author   : %s" % pull['author']).encode('utf8')
+            print "      Date     : %s" % time.ctime(pull['created_at'])
     if numbers_only:
+        print
         print
     return nonmergeable, mergeable_list
 
