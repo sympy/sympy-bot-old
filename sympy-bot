@@ -119,8 +119,7 @@ def main():
         help="Lists available pull requests",
         formatter_class=ArgumentDefaultsHelpFormatter)
     parser_list.add_argument("-n", "--numbers", action="store_true",
-        help="List only the numbers of open pull requests, suitable for "
-        "piping into 'xargs -L 1 sympy-bot review'")
+        help="List only the numbers of open pull requests")
     parser_list.add_argument("--profile", type=str, default=default_section,
         help="Configuration file profile to use, see README for information "
         "about setting up profiles")
