@@ -458,97 +458,128 @@ def dispatch_reviews(config, urls, **kwargs):
 
         run2to3 = True
 
-        # Iterate over interpreters
-        for log_num, i in enumerate(interpreters):
-            # Run tests
-            print "> Testing interpreter %s" % i
-            command = "%s %s" % (i, config.testcommand)
-            if mergeinfo["result"] in {'fetch', 'conflicts'}:
-                result = mergeinfo
+        if mergeinfo["result"] == "fetch":
+            print "> Could not fetch the branch!"
+            pull_review["fetch"] = {
+                "result": mergeinfo["result"],
+                "url": "(report was not uploaded)",
+            }
+        if mergeinfo["result"] == "conflicts":
+            print "> There were merge conflicts!"
+            log_file = os.path.join(log_dir, "merge-conflicts")
+            with codecs.open(log_file, "w", encoding="utf8") as log:
+                log.write(mergeinfo["log"])
+            print "> Merge conflicts logged to %s" % log_file
+
+            if not config.no_upload:
+                print "> Uploading merge conflicts report"
+                url_base = config.server
+                data = {
+                    "num": n,
+                    "result": mergeinfo["result"],
+                    "interpreter": "",
+                    "log": mergeinfo["log"],
+                    "testcommand": "git merge %s" % merge_commit,
+                }
+                report_url = reviews_sympy_org_upload(data, url_base)
+                print "> Uploaded report at: %s" % report_url
             else:
+                report_url = "(report was not uploaded)"
+
+            pull_review["conflicts"] = {
+                "result": mergeinfo["result"],
+                "url": report_url,
+            }
+        elif mergeinfo["result"] == "":
+            # Iterate over interpreters
+            for log_num, i in enumerate(interpreters):
+                # Run tests
+                print "> Testing interpreter %s" % i
+                command = "%s %s" % (i, config.testcommand)
                 result = run_tests(repo_url, branch, repo_path, command,
                     python3[i], merge_commit, run2to3=run2to3)
                 if python3[i]:
                     run2to3 = False
-            if result["result"] == "error":
-                print "> There was an error. Report not uploaded."
-                sys.exit(1)
-            print "> Done."
-
-            # Log results
-            log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
-            with codecs.open(log_file, "w", encoding="utf8") as log:
-                log.write(result["log"])
-            print "> Results logged to %s" % log_file
-
-            # Upload results
-            if not config.no_upload:
-                print "> Uploading test results"
-                url_base = config.server
-                data = {
-                    "num" : n,
-                    "result" : result["result"],
-                    "interpreter": i,
-                    "log": result["log"],
-                    "testcommand": config.testcommand,
-                }
-                report_url = reviews_sympy_org_upload(data, url_base)
-                print "> Uploaded report for '%s' at: %s" % (i, report_url)
-            else:
-                report_url = "(report was not uploaded)"
-
-            pull_review[i] = {
-                "result" : result["result"],
-                "url" : report_url,
-            }
-            del result
-            print
-
-        if config.build_docs:
-            # Run tests
-            print "> Building Sphinx docs"
-            if get_sphinx_version() is None:
-                print "> WARNING: Cannot find sphinx, disabling building HTML docs"
-                if interpreters == []:
-                    print "> No tests to run, exiting"
-                    exit()
-            else:
-                docs_repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
-                result = run_tests(repo_url, branch, docs_repo_path,
-                        config.build_docs_command, False, merge_commit)
                 if result["result"] == "error":
-                    print "There was an error. Report not uploaded."
+                    print "> There was an error. Report not uploaded."
                     sys.exit(1)
                 print "> Done."
 
-            # Log results
-            log_file = os.path.join(log_dir, "docs")
-            with codecs.open(log_file, "w", encoding="utf8") as log:
-                log.write(result["log"])
-            print "> Results logged to %s" % log_file
+                # Log results
+                log_file = os.path.join(log_dir, "interpreter-%s" % log_num)
+                with codecs.open(log_file, "w", encoding="utf8") as log:
+                    log.write(result["log"])
+                print "> Results logged to %s" % log_file
 
-            # Upload results
-            if not config.no_upload:
-                print "> Uploading test results"
-                url_base = config.server
-                data = {
-                    "num" : n,
+                # Upload results
+                if not config.no_upload:
+                    print "> Uploading test results"
+                    url_base = config.server
+                    data = {
+                        "num" : n,
+                        "result" : result["result"],
+                        "interpreter": i,
+                        "log": result["log"],
+                        "testcommand": config.testcommand,
+                    }
+                    report_url = reviews_sympy_org_upload(data, url_base)
+                    print "> Uploaded report for '%s' at: %s" % (i, report_url)
+                else:
+                    report_url = "(report was not uploaded)"
+
+                pull_review[i] = {
                     "result" : result["result"],
-                    "interpreter": "None",
-                    "log": result["log"],
-                    "testcommand": config.build_docs_command,
+                    "url" : report_url,
                 }
-                report_url = reviews_sympy_org_upload(data, url_base)
-                print "> Uploaded report for building docs at: %s" % report_url
-            else:
-                report_url = "(report was not uploaded)"
+                del result
+                print
 
-            pull_review["build_docs"] = {
-                "result" : result["result"],
-                "url" : report_url,
-            }
-            del result
-            print
+            if config.build_docs:
+                # Run tests
+                print "> Building Sphinx docs"
+                if get_sphinx_version() is None:
+                    print "> WARNING: Cannot find sphinx, disabling building HTML docs"
+                    if interpreters == []:
+                        print "> No tests to run, exiting"
+                        exit()
+                else:
+                    docs_repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
+                    result = run_tests(repo_url, branch, docs_repo_path,
+                        config.build_docs_command, False, merge_commit)
+                    if result["result"] == "error":
+                        print "> There was an error. Report not uploaded."
+                        sys.exit(1)
+                    print "> Done."
+
+                # Log results
+                log_file = os.path.join(log_dir, "docs")
+                with codecs.open(log_file, "w", encoding="utf8") as log:
+                    log.write(result["log"])
+                print "> Results logged to %s" % log_file
+
+                # Upload results
+                if not config.no_upload:
+                    print "> Uploading test results"
+                    url_base = config.server
+                    data = {
+                        "num" : n,
+                        "result" : result["result"],
+                        "interpreter": "None",
+                        "log": result["log"],
+                        "testcommand": config.build_docs_command,
+                    }
+                    report_url = reviews_sympy_org_upload(data, url_base)
+                    print "> Uploaded report for building docs at: %s" % report_url
+                else:
+                    report_url = "(report was not uploaded)"
+
+                pull_review["build_docs"] = {
+                    "result" : result["result"],
+                    "url" : report_url,
+                }
+                del result
+                print
+
         reviews[n] = pull_review
         print "> View logs for PR %d in: %s" % (n, log_dir_base)
 
@@ -596,7 +627,8 @@ def formulate_review(report_status, report_url, master_hash, branch_hash,
                   branch_name, 'master_name': master_name}
 
     if any([status == "conflicts" for status in report_status.itervalues()]):
-        summary = """:exclamation: There were merge conflicts (could not \
+        formatdict["report_url"] = report_url["conflicts"]
+        summary = """:exclamation: There were [merge conflicts]({report_url}) (could not \
 merge {branch_name} ({branch_hash}) into {master_name} ({master_hash})); could \
 not test the branch.
 {atuser}Please rebase or merge your branch with master.  \
@@ -619,35 +651,23 @@ sympy-bot tests again."""
     report = """**[SymPy Bot][sympy-bot] Summary**: %s\n""" % summary
 
     for n, i in enumerate(interpreter, start=1):
+        if i not in report_status.keys():
+            continue
         status = report_status[i]
         summary = get_summary(status, report_url[i])
 
-        if status in {"conflicts", "fetch"}:
-            # This is irrelevant in this case
-            # XXX: We can't use defaultdict here, as it has no effect on
-            # format(**details).  Any way we can get the same sort of thing?
-            details = {
-                'executable': "",
-                'python_version': "",
-                'platform_system': "",
-                'architecture': "",
-                'use_cache': "",
-                'additional_info': "",
-                'python_type': "",
-            }
-        else:
-            details = get_platform_version(i)
-            if testcommand != default_testcommand:
-                details['additional_info'] += "\n*Test command:* **%s**" % testcommand
-            if details['use_cache'] != 'yes':
-                details['additional_info'] += "\n*Cache:* **%s**" % details['use_cache']
+        details = get_platform_version(i)
+        if testcommand != default_testcommand:
+            details['additional_info'] += "\n*Test command:* **%s**" % testcommand
+        if details['use_cache'] != 'yes':
+            details['additional_info'] += "\n*Cache:* **%s**" % details['use_cache']
 
         details['summary'] = summary
         details['status'] = status
         details['symbol'] = status_symbols[status]
         report += "{symbol} **{python_type} {python_version}**: {summary}{additional_info}\n".format(**details)
 
-    if build_docs:
+    if build_docs and "build_docs" in report_status.keys():
         details = get_sphinx_version()
         details['status'] = report_status["build_docs"]
         details['symbol'] = status_symbols[details['status']]
