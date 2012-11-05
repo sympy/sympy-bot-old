@@ -676,7 +676,7 @@ sympy-bot tests again."""
         if build_docs_command != default_build_docs_command:
             details['additional_info'] += "\n*Docs build command:* **%s**" % build_docs_command
 
-        report += "{symbol}**Sphinx {sphinx_version}:** {summary}{additional_info}\n".format(**details)
+        report += "{symbol} **Sphinx {sphinx_version}**: {summary}{additional_info}\n".format(**details)
 
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
