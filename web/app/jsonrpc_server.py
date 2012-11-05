@@ -4,8 +4,10 @@ import traceback
 
 from django.utils import simplejson as json
 
+
 class InvalidRequest(Exception):
     pass
+
 
 class JSONRPCServer(object):
 
@@ -17,10 +19,10 @@ class JSONRPCServer(object):
             # side JavaScript is fixed to handle that):
             procs = [{"name": m} for m in self._methods if m != "system.describe"]
             result = {
-                    "sdversion": "1.0",
-                    "name": "AsyncHandler",
-                    "procs": procs,
-                    }
+                "sdversion": "1.0",
+                "name": "AsyncHandler",
+                "procs": procs,
+            }
             return result
 
         self._methods["system.describe"] = describe
@@ -49,7 +51,7 @@ class JSONRPCServer(object):
             result = {
                 "ok": False,
                 "reason": "Unhandled exception.",
-                }
+            }
         output = {"jsonrpc": "2.0", "id": id, "result": result}
         logging.info("JSON RPC out: " + str(output))
         return json.dumps(output)

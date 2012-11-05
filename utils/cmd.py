@@ -3,8 +3,10 @@ import platform
 import subprocess
 import sys
 
+
 class CmdException(Exception):
     pass
+
 
 def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
     """
@@ -33,6 +35,7 @@ def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
         raise CmdException("Command '%s' failed with err=%d. %s" % (s, r, output))
     return output
 
+
 def cmd2(cmd, cwd=None):
     """
     Runs the command "cmd", mirrors everything on the screen and returns a log
@@ -57,6 +60,7 @@ def cmd2(cmd, cwd=None):
 
     return log, r
 
+
 def get_interpreter_version_info(interpreter):
     """
     Get python version of `interpreter`
@@ -69,6 +73,7 @@ def get_interpreter_version_info(interpreter):
     ouput = p.stdout.read()
 
     return ouput.strip()
+
 
 def get_interpreter_type(interpreter):
     # TODO: support other alternate pythons
@@ -86,6 +91,7 @@ else:
 
     return ouput.strip()
 
+
 def get_executable(interpreter):
     path = os.environ['PATH']
     paths = path.split(os.pathsep)
@@ -99,11 +105,12 @@ def get_executable(interpreter):
         if os.path.isfile(f):
             return f
 
+
 def get_platform_version(interpreter):
     code = 'import sys; print(getattr(sys, \\"maxint\\", None))'
     call = '%s -c "%s"' % (interpreter, code)
     size = cmd(call, capture=True)
-    if size == 'None\n': # Python 3 doesn't have maxint, 2.5 doesn't have maxsize
+    if size == 'None\n':  # Python 3 doesn't have maxint, 2.5 doesn't have maxsize
         code = 'import sys; print(sys.maxsize)'
         call = '%s -c "%s"' % (interpreter, code)
         size = cmd(call, capture=True)
@@ -118,7 +125,7 @@ def get_platform_version(interpreter):
     executable = get_executable(interpreter)
     python_version = get_interpreter_version_info(interpreter)
     python_type = get_interpreter_type(interpreter)
-    r  = "%s (%s, %s, %s)\n" % (executable, python_version, platform_system, architecture)
+    r = "%s (%s, %s, %s)\n" % (executable, python_version, platform_system, architecture)
     return {'executable': executable,
             'python_version': python_version,
             'platform_system': platform_system,
@@ -127,6 +134,7 @@ def get_platform_version(interpreter):
             'additional_info': "",
             'python_type': python_type,
     }
+
 
 def get_sphinx_version():
     try:
