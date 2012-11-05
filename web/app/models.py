@@ -1,10 +1,12 @@
 from google.appengine.ext import db
 
+
 class User(db.Model):
     login = db.StringProperty(required=True)
     id = db.IntegerProperty()
     url = db.StringProperty()
     avatar_url = db.StringProperty()
+
 
 class PullRequest(db.Model):
     num = db.IntegerProperty(required=True)
@@ -19,6 +21,7 @@ class PullRequest(db.Model):
     mergeable = db.BooleanProperty()
     created_at = db.DateTimeProperty()
 
+
 class Task(db.Model):
     pullrequest = db.ReferenceProperty(PullRequest)
     result = db.StringProperty()
@@ -26,6 +29,7 @@ class Task(db.Model):
     interpreter = db.StringProperty()
     testcommand = db.StringProperty()
     uploaded_at = db.DateTimeProperty(auto_now_add=True)
+
 
 class UploadURL(db.Model):
     url_path = db.StringProperty()

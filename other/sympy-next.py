@@ -36,11 +36,13 @@ translate = None
 interpreter = None
 log = None
 
+
 def logit(message):
     print >> log, '>', message
     log.flush()
     if verbose:
         print '>', message
+
 
 def read_branchfile(f):
     ret = []
@@ -51,6 +53,7 @@ def read_branchfile(f):
 
     return ret
 
+
 def run_tests():
     cmd = [interpreter] + command
     logit("Running unit tests.")
@@ -58,6 +61,7 @@ def run_tests():
     out = subprocess.Popen(cmd, stdout=subprocess.PIPE).stdout
 
     report = []
+
     def my_join(file):
         while True:
             char = file.read(1)
@@ -68,6 +72,7 @@ def run_tests():
             if verbose:
                 sys.stdout.write(char)
             yield char
+
     def my_split(iter):
         buf = ''
         for c in iter:
@@ -96,6 +101,7 @@ def run_tests():
 
 py3k = "py3k-sympy"
 
+
 def pre_python3():
     if translate:
         logit("Translating to Python 3 ... (this may take a few minutes)")
@@ -106,6 +112,7 @@ def pre_python3():
         logit("Entering %s" % py3k)
         os.chdir(py3k)
 
+
 def post_python3():
     if translate:
         logit("Leaving %s" % py3k)
@@ -113,10 +120,12 @@ def post_python3():
         logit("Removing %s" % py3k)
         shutil.rmtree(py3k, True)
 
+
 def do_test(branches, name):
     def git(message, *args):
         logit("%s: git %s" % (message, ' '.join(args)))
         return subprocess.call(("git",) + args, stdout=log, stderr=log)
+
     def gitn(message, *args):
         if git(message, *args) != 0:
             raise RuntimeError('%s failed' % message)
@@ -178,10 +187,11 @@ def do_test(branches, name):
 
     return report, tests
 
+
 def write_report(reports):
     # create a html report
     allbranches = set()
-    alltests    = set()
+    alltests = set()
     for t in reports:
         for u in t[1]:
             allbranches.update([(u[0], u[1])])
@@ -190,7 +200,7 @@ def write_report(reports):
                 alltests.update([v[0]])
 
     branchtable = {}
-    testtable   = {}
+    testtable = {}
     for branch in allbranches:
         branchtable[branch] = {}
     for test in alltests:
@@ -313,6 +323,7 @@ def write_report(reports):
 
     outf.write('</body></html>')
 
+
 def create_report(merges, tests, stamp):
     # load old reports
     reports = []
@@ -330,6 +341,7 @@ def create_report(merges, tests, stamp):
 
     write_report(reports)
 
+
 def get_python_version(options):
     cmd = [options.interpreter, "-c", "import sys; sys.stdout.write(str(sys.version_info[:2]))"]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -345,6 +357,7 @@ def get_python_version(options):
     raise RuntimeError("unable to run '%s'" % options.interpreter)
 
 # MAIN PROGRAM
+
 
 def main():
     parser = OptionParser()

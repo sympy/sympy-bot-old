@@ -5,6 +5,7 @@ import urllib2
 from jsonrpc import JSONRPCService
 from urllib import urlencode
 
+
 def reviews_pastehtml_upload(source, input_type="html"):
     """
     Uploads 'source' as an 'input_type' type to pastehtml.com.
@@ -35,6 +36,7 @@ def reviews_pastehtml_upload(source, input_type="html"):
     if s.find("http", 2) != -1:
         s = s[s.find("http", 2):]
     return s
+
 
 def reviews_sympy_org_upload(data, url_base):
     timer = 1

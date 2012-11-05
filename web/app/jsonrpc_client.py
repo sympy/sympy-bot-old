@@ -10,6 +10,7 @@ except ImportError:
 
 from google.appengine.api.urlfetch import DownloadError
 
+
 class JSONRPCError(Exception):
 
     def __init__(self, error):
@@ -17,6 +18,7 @@ class JSONRPCError(Exception):
 
     def __str__(self):
         return self.error['message']
+
 
 class JSONRPCMethod(object):
     """Represents a JSON RPC method of some service. """
@@ -61,7 +63,7 @@ class JSONRPCMethod(object):
             logging.info("ulropen failed with DownloadError: %s" % e)
             raise JSONRPCError({
                 "message": "ulropen failed with DownloadError"
-                })
+            })
         response = loads(url.read())
         url.close()
 
@@ -69,6 +71,7 @@ class JSONRPCMethod(object):
             return response['result']
         else:
             raise JSONRPCError(response['error'])
+
 
 class JSONRPCNamespace(object):
     """Represents a collection of JSON RPC methods. """
@@ -78,6 +81,7 @@ class JSONRPCNamespace(object):
 
     def __repr__(self):
         return "<jsonrpc-namespace %s>" % self.name
+
 
 class JSONRPCService(object):
     """
@@ -189,4 +193,3 @@ class JSONRPCService(object):
 
     def __repr__(self):
         return "<jsonrpc-service %s>" % self.url
-
