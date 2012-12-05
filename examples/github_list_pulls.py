@@ -5,6 +5,7 @@ from urllib2 import urlopen
 import json
 from time import time
 
+
 def v2():
     # v2:
     base_url = "http://github.com/api/v2/json/pulls/"
@@ -12,6 +13,7 @@ def v2():
     for pull in data["pulls"]:
         print "#", pull["number"], ":", pull["title"]
     print
+
 
 def link2dict(l):
     """
@@ -28,20 +30,21 @@ def link2dict(l):
         i = l.find(";")
         assert i != -1
         assert l[0] == "<"
-        url = l[1:i-1]
-        assert l[i-1] == ">"
-        assert l[i+1:i+7] == ' rel="'
-        j = l.find('"', i+7)
+        url = l[1:i - 1]
+        assert l[i - 1] == ">"
+        assert l[i + 1:i + 7] == ' rel="'
+        j = l.find('"', i + 7)
         assert j != -1
-        param = l[i+7:j]
+        param = l[i + 7:j]
         d[param] = url
 
-        if len(l) == j+1:
+        if len(l) == j + 1:
             break
-        assert l[j+1] == ","
+        assert l[j + 1] == ","
         j += 2
-        l = l[j+1:]
+        l = l[j + 1:]
     return d
+
 
 def get_all_pages(url):
     """
@@ -77,9 +80,9 @@ url = base_url + "/repos/sympy/sympy/pulls?state=open"
 print "Getting all pull requests..."
 t = time()
 pulls = get_all_pages(url)
-print "    Done in:", time()-t
+print "    Done in:", time() - t
 for pull in pulls:
-    print "#%d (%s): %s" %(pull["number"], pull["user"]["login"], pull["title"])
+    print "#%d (%s): %s" % (pull["number"], pull["user"]["login"], pull["title"])
     url = base_url + "/repos/sympy/sympy/pulls/%d" % pull["number"]
     data = json.load(urlopen(url))
     print "mergeable:", data["mergeable"]

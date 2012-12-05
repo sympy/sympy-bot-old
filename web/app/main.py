@@ -34,6 +34,7 @@ else:
 polled_user = "sympy"
 polled_repo = "sympy"
 
+
 class RequestHandler(webapp.RequestHandler):
 
     def render(self, temp, data=None):
@@ -44,14 +45,15 @@ class RequestHandler(webapp.RequestHandler):
         """
         name, _ = os.path.splitext(temp)
         d = {
-                'dev_server': dev_server,
-                name + '_selected': "selected",
-            }
+            'dev_server': dev_server,
+            name + '_selected': "selected",
+        }
         if data is not None:
             d.update(data)
         path = os.path.join(os.path.dirname(__file__), "..", "templates", temp)
         s = template.render(path, d)
         self.response.out.write(s)
+
 
 class MainPage(RequestHandler):
     def get(self):
@@ -91,7 +93,8 @@ class MainPage(RequestHandler):
             "last_update_pretty": last_update_pretty,
             "last_quick_update": last_quick_update,
             "last_quick_update_pretty": last_quick_update_pretty,
-            })
+        })
+
 
 class ClosedPullRequestsPage(RequestHandler):
     def get(self):
@@ -100,7 +103,8 @@ class ClosedPullRequestsPage(RequestHandler):
         p_closed.order("-created_at")
         self.render("closed_pullrequests.html", {
             "pullrequests_closed": p_closed,
-            })
+        })
+
 
 class PullRequestPage(RequestHandler):
     def get(self, num):
@@ -111,11 +115,13 @@ class PullRequestPage(RequestHandler):
         t.order("uploaded_at")
         self.render("pullrequest.html", {'p': p, 'tasks': t})
 
+
 class ReportPage(RequestHandler):
     def get(self, id):
         t = Task.get(id)
         logging.info(t.log)
         self.render("report.html", {'task': t})
+
 
 class AsyncHandler(webapp.RequestHandler):
     def get(self):
@@ -139,12 +145,12 @@ class AsyncHandler(webapp.RequestHandler):
             result = {
                 "ok": True,
                 "task_url": "%s/report/%s" % (url_base, t.key())
-                }
+            }
             return result
 
         s = JSONRPCServer({
             "RPC.upload_task": upload_task,
-            })
+        })
         output = s.handle_request_from_client(self.request.body)
         self.response.out.write(output)
 
@@ -226,7 +232,7 @@ class UploadPull(RequestHandler):
                     new_record = UploadURL(url_path=sha_hash.hexdigest(), user=user.nickname())
                     new_record.put()
                     new_url = self.request.host_url + "/upload_pull/" + \
-                              sha_hash.hexdigest()
+                        sha_hash.hexdigest()
                     notify_admins(user, new_url)
                 if self.request.get("populate"):
                     taskqueue.add(url="/worker", queue_name="github")
@@ -296,7 +302,7 @@ class Worker(webapp.RequestHandler):
 
 
 def main():
-    urls =  [
+    urls = [
         ('/', MainPage),
         ('/closed_pullrequests/?', ClosedPullRequestsPage),
         ('/async/?', AsyncHandler),

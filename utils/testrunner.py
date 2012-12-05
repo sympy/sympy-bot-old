@@ -5,6 +5,7 @@ import subprocess
 
 from utils.cmd import cmd, cmd2, CmdException
 
+
 def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
               test_command, python3, master_commit, run2to3=True):
     """
@@ -31,9 +32,9 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
 
     """
     result = {
-            "log": "",
-            "xpassed": "",
-        }
+        "log": "",
+        "xpassed": "",
+    }
     if python3:
         if run2to3:
             use2to3 = os.path.join("bin", "use2to3")
@@ -51,6 +52,7 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
         result["result"] = "Failed"
     return result
 
+
 def get_xpassed_info_from_log(log):
     re_xpassed = re.compile("\s+_+\s+xpassed tests\s+_+\s+(?P<xpassed>([^\n]+\n)+)\n", re.M)
     m = re_xpassed.search(log)
@@ -58,6 +60,7 @@ def get_xpassed_info_from_log(log):
         lines = m.group('xpassed')
         return lines.splitlines()
     return []
+
 
 def get_hashes(master_repo_path, master_commit, pull_request_number):
     result = {}
@@ -71,6 +74,7 @@ def get_hashes(master_repo_path, master_commit, pull_request_number):
             cwd=master_repo_path).strip()
     return result
 
+
 def fetch_branch(pull_request_repo_url, pull_request_branch, master_repo_path,
                  pull_request_number):
 
@@ -81,6 +85,7 @@ def fetch_branch(pull_request_repo_url, pull_request_branch, master_repo_path,
     except CmdException:
         return "fetch"
     cmd("git checkout test_%s" % pull_request_number, echo=True, cwd=master_repo_path)
+
 
 def merge_branch(master_repo_path, master_commit):
     # Note: this assumes the branch is already checked out

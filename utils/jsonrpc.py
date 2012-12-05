@@ -7,6 +7,7 @@ try:
 except ImportError:
     from simplejson import dumps, loads
 
+
 class JSONRPCError(Exception):
 
     def __init__(self, error):
@@ -14,6 +15,7 @@ class JSONRPCError(Exception):
 
     def __str__(self):
         return self.error['message']
+
 
 class JSONRPCMethod(object):
     """Represents a JSON RPC method of some service. """
@@ -54,6 +56,7 @@ class JSONRPCMethod(object):
         else:
             raise JSONRPCError(response['error'])
 
+
 class JSONRPCNamespace(object):
     """Represents a collection of JSON RPC methods. """
 
@@ -62,6 +65,7 @@ class JSONRPCNamespace(object):
 
     def __repr__(self):
         return "<jsonrpc-namespace %s>" % self.name
+
 
 class JSONRPCService(object):
     """
@@ -173,4 +177,3 @@ class JSONRPCService(object):
 
     def __repr__(self):
         return "<jsonrpc-service %s>" % self.url
-
