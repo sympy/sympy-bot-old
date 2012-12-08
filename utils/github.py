@@ -48,7 +48,7 @@ def github_get_pull_request(urls, n):
             pull = _query(url)
             break
         except urllib2.URLError:
-            print "Could not get pull request, retrying in %d seconds..." % timer
+            print "Could not get pull request %d, retrying in %d seconds..." % (n, timer)
             time.sleep(timer)
             timer *= 2
 
