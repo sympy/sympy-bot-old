@@ -12,6 +12,8 @@ class URLs(object):
         self.authorize_url = authorize_url
 
         self.pull_list_url = api_url + "/repos" + "/" + user + "/" + repo + "/pulls"
+        self.issue_list_url = api_url + "/repos/" + user + "/" + repo + "/issues"
+        self.single_issue_template = self.issue_list_url + "/%d"
         self.single_pull_template = self.pull_list_url + "/%d"
         self.user_info_template = api_url + "/users/%s"
         self.issue_comment_template = \
