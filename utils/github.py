@@ -41,6 +41,7 @@ def github_get_pull_request(urls, n):
     Returns pull request 'n'.
     """
     url = urls.single_pull_template % n
+    issue_url = urls.single_issue_template % n
 
     timer = 1
     while True:
@@ -48,6 +49,17 @@ def github_get_pull_request(urls, n):
             pull = _query(url)
             break
         except urllib2.URLError:
+            # It's possible the "pull request" is really an issue.  If it is,
+            # the issue url will exist.
+            try:
+                issue = _query(issue_url)
+            except urllib2.URLError:
+                pass
+            else:
+                print "Pull request %d is just an issue (no code is attached). Skipping." % n
+                pull = False
+                break
+
             print "Could not get pull request %d, retrying in %d seconds..." % (n, timer)
             time.sleep(timer)
             timer *= 2
@@ -109,6 +121,9 @@ def github_list_pull_requests(urls, numbers_only=False):
         sys.stdout.write(" %d" % n)
         sys.stdout.flush()
         pull_info = github_get_pull_request(urls, n)
+        if not pull_info:
+            # Pull request is an issue
+            continue
         mergeable = pull_info["mergeable"]
         if pull["head"]["repo"]:
             repo = pull["head"]["repo"]["html_url"]
