@@ -416,6 +416,9 @@ def dispatch_reviews(config, urls, **kwargs):
 
         # Write pull request info
         pull = github_get_pull_request(urls, n)
+        if not pull:
+            # Pull request is really an issue
+            continue
         assert pull["number"] == n
         print "> Reviewing pull request #%d" % n
         repo_url = pull["head"]["repo"]["html_url"]
