@@ -14,7 +14,7 @@ from utils.cmd import (cmd, get_interpreter_version_info, get_platform_version,
         get_sphinx_version)
 from utils.github import (github_add_comment_to_pull_request,
         github_authenticate, github_get_pull_request, github_get_user_info,
-        github_list_pull_requests)
+        github_get_user_repos, github_list_pull_requests)
 from utils.reviews import reviews_sympy_org_upload
 from utils.testrunner import run_tests, get_hashes, merge_branch, fetch_branch
 from utils.url_templates import URLs
@@ -421,14 +421,24 @@ def dispatch_reviews(config, urls, **kwargs):
             continue
         assert pull["number"] == n
         print "> Reviewing pull request #%d" % n
-        repo_url = pull["head"]["repo"]["html_url"]
-        repo_url = repo_url.replace(default_protocol, config.protocol)
         merge_commit = config.merge_commit or "origin/" + pull["base"]["ref"]
         branch = pull["head"]["ref"]
         user = pull["head"]["user"].get("login")
         user_info = github_get_user_info(urls, user)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
+
+        repo_dict = pull["head"]["repo"]
+        if repo_dict is None:
+            # This might happen if a user sends a PR from his master branch.
+            # In this case we search the user's repos for a matching repo.
+            user_repos = github_get_user_repos(urls, user)
+            for repo in user_repos:
+                if repo["name"] == pull["base"]["repo"]["name"]:
+                    repo_dict = repo
+                    break
+        repo_url = repo_dict["html_url"]
+        repo_url = repo_url.replace(default_protocol, config.protocol)
 
         fetchinfo = fetch_branch(repo_url, branch, repo_path, n)
         if fetchinfo:
