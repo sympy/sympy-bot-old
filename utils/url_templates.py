@@ -16,5 +16,6 @@ class URLs(object):
         self.single_issue_template = self.issue_list_url + "/%d"
         self.single_pull_template = self.pull_list_url + "/%d"
         self.user_info_template = api_url + "/users/%s"
+        self.user_repos_template = api_url + "/users/%s/repos"
         self.issue_comment_template = \
             api_url + "/repos" + "/" + user + "/" + repo + "/issues/%d" + "/comments"

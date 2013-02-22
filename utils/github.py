@@ -82,6 +82,21 @@ def github_get_user_info(urls, username):
     return user_info
 
 
+def github_get_user_repos(urls, username):
+    url = urls.user_repos_template % username
+    timer = 1
+    while True:
+        try:
+            user_repos = _query(url)
+            break
+        except urllib2.URLError:
+            print "Could not get user repository information, retrying in %d seconds..." % timer
+            time.sleep(timer)
+            timer *= 2
+
+    return user_repos
+
+
 def github_check_authentication(urls, username, password, token):
     """
     Checks that username & password is valid.
