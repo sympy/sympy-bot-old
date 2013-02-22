@@ -84,7 +84,7 @@ def fetch_branch(pull_request_repo_url, pull_request_branch, master_repo_path,
                  pull_request_number):
 
     try:
-        cmd("git fetch %s %s:test_%s" % (pull_request_repo_url,
+        cmd("git fetch %s \"%s:test_%s\"" % (pull_request_repo_url,
             pull_request_branch, pull_request_number), echo=True,
             cwd=master_repo_path)
         cmd("git fetch origin", echo=True, cwd=master_repo_path)
