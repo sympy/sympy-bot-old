@@ -34,8 +34,8 @@ def github_get_pull_request_all(urls):
     """
     Returns all github pull requests.
     """
-    return _query(urls.pull_list_url)
-
+    return keep_trying(lambda: _query(urls.pull_list_url), urllib2.URLError,
+                       "get list of all pull requests")
 
 def github_get_pull_request(urls, n):
     """
