@@ -5,6 +5,7 @@ import urllib2
 from jsonrpc import JSONRPCService
 from urllib import urlencode
 
+from utils.cmd import keep_trying
 
 def reviews_pastehtml_upload(source, input_type="html"):
     """
@@ -17,15 +18,7 @@ def reviews_pastehtml_upload(source, input_type="html"):
     url = "http://pastehtml.com/upload/create?input_type=%s&result=address"
     request = urllib2.Request(url % input_type, data=urlencode([("txt", source)]))
 
-    timer = 1
-    while True:
-        try:
-            result = urllib2.urlopen(request)
-            break
-        except urllib2.HTTPError:
-            print "Error while accessing pastehtml.com, retrying in %d seconds..." % timer
-            time.sleep(timer)
-            timer *= 2
+    result = keep_trying(lambda: urllib2.urlopen(request), urllib2.URLError, "access pastehtml.com")
 
     s = result.read()
     # There is a bug at pastehtml.com, that sometimes it returns:
@@ -39,23 +32,29 @@ def reviews_pastehtml_upload(source, input_type="html"):
 
 
 def reviews_sympy_org_upload(data, url_base):
-    timer = 1
-    while True:
-        try:
-            s = JSONRPCService(url_base + "/async")
-            r = s.RPC.upload_task(data["num"], data["result"],
-                    data["interpreter"], data["testcommand"], data["log"])
-            if "task_url" in r:
-                break
-            else:
-                # This happens for example when the server is over quota, see
-                # https://github.com/sympy/sympy-bot/issues/110
-                print "Server problem at %s, retrying in %d seconds..." % (url_base, timer)
-        except (urllib2.HTTPError, urllib2.URLError):
-            # The server is down or we cannot connect to the internet
-            print "Error while accessing %s, retrying in %d seconds..." % (url_base, timer)
+    def _do_upload():
+        s = JSONRPCService(url_base + "/async")
+        r = s.RPC.upload_task(data["num"], data["result"],
+                data["interpreter"], data["testcommand"], data["log"])
+        if "task_url" in r:
+            break
+        else:
+            # This happens for example when the server is over quota, see
+            # https://github.com/sympy/sympy-bot/issues/110
 
-        time.sleep(timer)
-        timer *= 2
+            # Note that this exact error message is checked below, in case
+            # something else raises a ValueError
+            raise urllib2.URLError("Quota")
+
+        return r
+
+    def _handler(e):
+        if e.message == "Quota":
+            print "Server appears to be over quota."
+        else:
+            raise e
+
+    r = keep_trying(_do_upload, urllib2.URLError, "access %s" %
+                    url_base, _handler)
 
     return r["task_url"]
