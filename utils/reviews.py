@@ -36,9 +36,7 @@ def reviews_sympy_org_upload(data, url_base):
         s = JSONRPCService(url_base + "/async")
         r = s.RPC.upload_task(data["num"], data["result"],
                 data["interpreter"], data["testcommand"], data["log"])
-        if "task_url" in r:
-            break
-        else:
+        if "task_url" not in r:
             # This happens for example when the server is over quota, see
             # https://github.com/sympy/sympy-bot/issues/110
 
