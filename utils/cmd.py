@@ -170,7 +170,14 @@ def keep_trying(command, errors, what_did, on_except=None):
     second. If it fails again, it tries again in two seconds, then four
     seconds, and so on (doubling each time).
 
-    The return value is the same as the return value of `command()`.
+    This "time doubling" scheme mimics other systems such as the Google
+    AppEngine uploader and GMail, and is useful to give fast response time for
+    minor blips, but avoids DoSing the server, which can often make the
+    problem worse (e.g., if the reason the request failed is that you hit a
+    quota).
+
+    The return value is the same as the return value of `command()`, or
+    `on_except()` if that was run and returned non-None.
 
     """
     timer = 1
