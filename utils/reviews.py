@@ -49,8 +49,6 @@ def reviews_sympy_org_upload(data, url_base):
     def _handler(e):
         if e.message == "Quota":
             print "Server appears to be over quota."
-        else:
-            raise e
 
     r = keep_trying(_do_upload, urllib2.URLError, "access %s" %
                     url_base, _handler)
