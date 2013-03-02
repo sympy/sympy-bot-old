@@ -2,7 +2,7 @@ import os
 import platform
 import subprocess
 import sys
-
+import time
 
 class CmdException(Exception):
     pass
@@ -144,3 +144,56 @@ def get_sphinx_version():
     version = sphinx.__version__
     r = " %s" % version
     return {'sphinx_version': r, 'additional_info': ""}
+
+def keep_trying(command, errors, what_did, on_except=None):
+    """
+    Keep trying command, using a time doubling scheme.
+
+    Parameters
+    ----------
+    command - A function with no arguments to be called.  If it's just one
+        line, use something like lambda: do_something().
+
+    errors - A list of errors to catch, like (URLError,).
+
+    what_did - A string representing what the function is doing, for use in
+        the error message.  It should be in past tense, and not start with a
+        capital letter. For example, "get pull request 1234".
+
+    on_except - (Optional) A function to be run when the exception is run,
+        before the error message is caught.  Should be a function that takes a
+        single argument, the error that was caught.  If the function returns a
+        non-None value, that is returned.  Otherwise, it retries.
+
+    It tries `command()`, and if it raises one of the errors in `errors`, it
+    prints an error message based on `what_did`, then tries again in one
+    second. If it fails again, it tries again in two seconds, then four
+    seconds, and so on (doubling each time).
+
+    This "time doubling" scheme mimics other systems such as the Google
+    AppEngine uploader and GMail, and is useful to give fast response time for
+    minor blips, but avoids DoSing the server, which can often make the
+    problem worse (e.g., if the reason the request failed is that you hit a
+    quota).
+
+    The return value is the same as the return value of `command()`, or
+    `on_except()` if that was run and returned non-None.
+
+    """
+    timer = 1
+
+    while True:
+        try:
+            result = command()
+            break
+        except errors as e:
+            if on_except:
+                a = on_except(e)
+                if a is not None:
+                    return a
+
+            print "Could not %s, retrying in %d seconds..." % (what_did, timer)
+            time.sleep(timer)
+            timer *= 2
+
+    return result

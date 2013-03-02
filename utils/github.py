@@ -5,6 +5,7 @@ import time
 import urllib2
 from getpass import getpass
 
+from utils.cmd import keep_trying
 
 class AuthenticationFailed(Exception):
     pass
@@ -33,8 +34,8 @@ def github_get_pull_request_all(urls):
     """
     Returns all github pull requests.
     """
-    return _query(urls.pull_list_url)
-
+    return keep_trying(lambda: _query(urls.pull_list_url), urllib2.URLError,
+                       "get list of all pull requests")
 
 def github_get_pull_request(urls, n):
     """
@@ -43,59 +44,30 @@ def github_get_pull_request(urls, n):
     url = urls.single_pull_template % n
     issue_url = urls.single_issue_template % n
 
-    timer = 1
-    while True:
+    def _check_issue(e):
+        """
+        It's possible the "pull request" is really an issue. If it is, the
+        issue url will exist.
+        """
         try:
-            pull = _query(url)
-            break
+            issue = _query(issue_url)
         except urllib2.URLError:
-            # It's possible the "pull request" is really an issue.  If it is,
-            # the issue url will exist.
-            try:
-                issue = _query(issue_url)
-            except urllib2.URLError:
-                pass
-            else:
-                print "Pull request %d is just an issue (no code is attached). Skipping." % n
-                pull = False
-                break
+            pass
+        else:
+            print ("Pull request %d appears to be an issue "
+                   "(no code is attached). Skipping..." % n)
+            return False
 
-            print "Could not get pull request %d, retrying in %d seconds..." % (n, timer)
-            time.sleep(timer)
-            timer *= 2
-
-    return pull
-
+    return keep_trying(lambda: _query(url), urllib2.URLError,
+                       "get pull request %d" % n, _check_issue)
 
 def github_get_user_info(urls, username):
     url = urls.user_info_template % username
-    timer = 1
-    while True:
-        try:
-            user_info = _query(url)
-            break
-        except urllib2.URLError:
-            print "Could not get user information, retrying in %d seconds..." % timer
-            time.sleep(timer)
-            timer *= 2
-
-    return user_info
-
+    return keep_trying(lambda: _query(url), urllib2.URLError, "get user information")
 
 def github_get_user_repos(urls, username):
     url = urls.user_repos_template % username
-    timer = 1
-    while True:
-        try:
-            user_repos = _query(url)
-            break
-        except urllib2.URLError:
-            print "Could not get user repository information, retrying in %d seconds..." % timer
-            time.sleep(timer)
-            timer *= 2
-
-    return user_repos
-
+    return keep_trying(lambda: _query(url), urllib2.URLError, "get user repository information")
 
 def github_check_authentication(urls, username, password, token):
     """
