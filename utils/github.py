@@ -30,14 +30,14 @@ def generate_token(urls, username, password, name="SymPy Bot"):
     return rep["token"]
 
 
-def github_get_pull_request_all(urls):
+def github_get_pull_request_all(urls, username, password, token):
     """
     Returns all github pull requests.
     """
-    return keep_trying(lambda: _query(urls.pull_list_url), urllib2.URLError,
+    return keep_trying(lambda: _query(urls.pull_list_url, username, password, token), urllib2.URLError,
                        "get list of all pull requests")
 
-def github_get_pull_request(urls, n):
+def github_get_pull_request(urls, username, password, token, n):
     """
     Returns pull request 'n'.
     """
@@ -50,7 +50,7 @@ def github_get_pull_request(urls, n):
         issue url will exist.
         """
         try:
-            issue = _query(issue_url)
+            issue = _query(issue_url, username, password, token)
         except urllib2.URLError:
             pass
         else:
@@ -58,16 +58,16 @@ def github_get_pull_request(urls, n):
                    "(no code is attached). Skipping..." % n)
             return False
 
-    return keep_trying(lambda: _query(url), urllib2.URLError,
+    return keep_trying(lambda: _query(url, username, password, token), urllib2.URLError,
                        "get pull request %d" % n, _check_issue)
 
-def github_get_user_info(urls, username):
-    url = urls.user_info_template % username
-    return keep_trying(lambda: _query(url), urllib2.URLError, "get user information")
+def github_get_user_info(urls, user, username, password, token):
+    url = urls.user_info_template % user
+    return keep_trying(lambda: _query(url, username, password, token), urllib2.URLError, "get user information")
 
-def github_get_user_repos(urls, username):
-    url = urls.user_repos_template % username
-    return keep_trying(lambda: _query(url), urllib2.URLError, "get user repository information")
+def github_get_user_repos(urls, user, username, password, token):
+    url = urls.user_repos_template % user
+    return keep_trying(lambda: _query(url, user, username, password, token), urllib2.URLError, "get user repository information")
 
 def github_check_authentication(urls, username, password, token):
     """
@@ -92,14 +92,14 @@ def github_add_comment_to_pull_request(urls, username, password, token, n, comme
     assert response["body"] == comment
 
 
-def github_list_pull_requests(urls, numbers_only=False):
+def github_list_pull_requests(urls, username, password, token, numbers_only=False):
     """
     Returns the pull requests numbers.
 
     It returns a tuple of (nonmergeable, mergeable), where "nonmergeable"
     and "mergeable" are lists of the pull requests numbers.
     """
-    pulls = github_get_pull_request_all(urls)
+    pulls = github_get_pull_request_all(urls, username, password, token)
     formatted_pulls = []
     print "Total pull count", len(pulls)
     sys.stdout.write("Processing pulls...")
@@ -107,7 +107,7 @@ def github_list_pull_requests(urls, numbers_only=False):
         n = pull["number"]
         sys.stdout.write(" %d" % n)
         sys.stdout.flush()
-        pull_info = github_get_pull_request(urls, n)
+        pull_info = github_get_pull_request(urls, username, password, token, n)
         if not pull_info:
             # Pull request is an issue
             continue
@@ -120,8 +120,8 @@ def github_list_pull_requests(urls, numbers_only=False):
         created_at = pull["created_at"]
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
-        username = pull["user"]["login"]
-        user_info = github_get_user_info(urls, username)
+        user = pull["user"]["login"]
+        user_info = github_get_user_info(urls, user, username, password, token)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
         branch_against = pull["base"]["ref"]
