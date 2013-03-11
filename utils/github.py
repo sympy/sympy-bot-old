@@ -67,7 +67,7 @@ def github_get_user_info(urls, user, username, password, token):
 
 def github_get_user_repos(urls, user, username, password, token):
     url = urls.user_repos_template % user
-    return keep_trying(lambda: _query(url, user, username, password, token), urllib2.URLError, "get user repository information")
+    return keep_trying(lambda: _query(url, username, password, token), urllib2.URLError, "get user repository information")
 
 def github_check_authentication(urls, username, password, token):
     """
