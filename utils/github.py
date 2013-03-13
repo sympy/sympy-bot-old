@@ -120,10 +120,21 @@ def github_list_pull_requests(urls, numbers_only=False):
         created_at = pull["created_at"]
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
-        username = pull["user"]["login"]
-        user_info = github_get_user_info(urls, username)
-        author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
-                                  user_info.get("email", ""))
+        user = pull["user"]["login"]
+        with open('author_info') as infile:
+            data = json.load(infile)
+        got_it = False
+        for k in iter(data):
+            if k == user:
+                author = "\"%s\" <%s>" % (data[user]["name"], data[user]["email"])
+                got_it = True
+        if not got_it:
+            user_info = github_get_user_info(urls, user)
+            author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
+                                      user_info.get("email", ""))
+            data[user_info["login"]] = {"name": user_info.get("name", "unknown"), "email": user_info.get("email", "")}
+            with open('author_info', 'wb') as outfile:
+                json.dump(data, outfile, indent=2)
         branch_against = pull["base"]["ref"]
         formatted_pulls.append({
             'created_at': created_at,
