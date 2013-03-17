@@ -127,12 +127,6 @@ def main():
     parser_list.add_argument("-R", "--repository", type=str, default="sympy/sympy",
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
-    parser_list.add_argument("--user", type=str, help="Username used for "
-        "GitHub authentication")
-    parser_list.add_argument("--token", type=str, help="GitHub API token "
-        "used for authentication")
-    parser_list.add_argument("--token-file", type=str, help="File "
-        "containing GitHub API token used for authentication")
 
     boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2", "python3", "copy_py3k_sympy",}
     # Initial parse to print help
@@ -171,11 +165,8 @@ def main():
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
-    if not options.token and options.token_file:
-                options.token = load_token_file(options.token_file)
-
     if options.command == "list":
-        github_list_pull_requests(urls, options.user, None, options.token, numbers_only=options.numbers)
+        github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
         if options.copy_py3k_sympy and not options.reference:
              parser.error("--copy-py3k-sympy requires --reference")
@@ -214,12 +205,12 @@ def main():
         if "mergable" in options.n or "mergeable" in options.n:
             print "> Reviewing all *mergeable* pull requests"
             print
-            nonmergeable, mergeable = github_list_pull_requests(urls, options.user, None, options.token, numbers_only=True)
+            nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
             options.n = mergeable
         elif "all" in options.n:
             print "> Reviewing *all* pull requests"
             print
-            nonmergeable, mergeable = github_list_pull_requests(urls, options.user, None, options.token, numbers_only=True)
+            nonmergeable, mergeable = github_list_pull_requests(urls, numbers_only=True)
             options.n = nonmergeable + mergeable
         else:
             # list of pull request numbers, convert it:
@@ -424,7 +415,7 @@ def dispatch_reviews(config, urls, **kwargs):
             os.mkdir(log_dir)
 
         # Write pull request info
-        pull = github_get_pull_request(urls, username, password, token, n)
+        pull = github_get_pull_request(urls, n)
         if not pull:
             # Pull request is really an issue
             continue
@@ -433,7 +424,7 @@ def dispatch_reviews(config, urls, **kwargs):
         merge_commit = config.merge_commit or "origin/" + pull["base"]["ref"]
         branch = pull["head"]["ref"]
         user = pull["head"]["user"].get("login")
-        user_info = github_get_user_info(urls, user, username, password, token)
+        user_info = github_get_user_info(urls, user)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
 
@@ -441,7 +432,7 @@ def dispatch_reviews(config, urls, **kwargs):
         if repo_dict is None:
             # This might happen if a user sends a PR from his master branch.
             # In this case we search the user's repos for a matching repo.
-            user_repos = github_get_user_repos(urls, user, username, password, token)
+            user_repos = github_get_user_repos(urls, user)
             for repo in user_repos:
                 if repo["name"] == pull["base"]["repo"]["name"]:
                     repo_dict = repo
@@ -625,8 +616,7 @@ def dispatch_reviews(config, urls, **kwargs):
         # Comment to GitHub
         if not config.no_upload and config.comment:
             print "> Uploading the review to the GitHub pull request ..."
-            github_add_comment_to_pull_request(urls, username, password, token,
-                    n, review)
+            github_add_comment_to_pull_request(urls, n, review)
             print ">     Done."
             print "> Check the results: https://github.com/%s/pull/%d" % (config.repository, n)
 

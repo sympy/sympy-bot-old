@@ -3,6 +3,8 @@ import json
 import sys
 import time
 import urllib2
+import os
+import ConfigParser
 from getpass import getpass
 
 from utils.cmd import keep_trying
@@ -26,18 +28,18 @@ def generate_token(urls, username, password, name="SymPy Bot"):
     )
 
     url = urls.authorize_url
-    rep = _query(url, username=username, password=password, data=enc_data)
+    rep = _query(url, data=enc_data, username=username, password=password)
     return rep["token"]
 
 
-def github_get_pull_request_all(urls, username, password, token):
+def github_get_pull_request_all(urls):
     """
     Returns all github pull requests.
     """
-    return keep_trying(lambda: _query(urls.pull_list_url, username, password, token), urllib2.URLError,
+    return keep_trying(lambda: _query(urls.pull_list_url), urllib2.URLError,
                        "get list of all pull requests")
 
-def github_get_pull_request(urls, username, password, token, n):
+def github_get_pull_request(urls, n):
     """
     Returns pull request 'n'.
     """
@@ -50,7 +52,7 @@ def github_get_pull_request(urls, username, password, token, n):
         issue url will exist.
         """
         try:
-            issue = _query(issue_url, username, password, token)
+            issue = _query(issue_url)
         except urllib2.URLError:
             pass
         else:
@@ -58,29 +60,27 @@ def github_get_pull_request(urls, username, password, token, n):
                    "(no code is attached). Skipping..." % n)
             return False
 
-    return keep_trying(lambda: _query(url, username, password, token), urllib2.URLError,
+    return keep_trying(lambda: _query(url), urllib2.URLError,
                        "get pull request %d" % n, _check_issue)
 
-def github_get_user_info(urls, user, username, password, token):
+def github_get_user_info(urls, user):
     url = urls.user_info_template % user
-    return keep_trying(lambda: _query(url, username, password, token), urllib2.URLError, "get user information")
+    return keep_trying(lambda: _query(url), urllib2.URLError, "get user information")
 
-def github_get_user_repos(urls, user, username, password, token):
+def github_get_user_repos(urls, user):
     url = urls.user_repos_template % user
-    return keep_trying(lambda: _query(url, username, password, token), urllib2.URLError, "get user repository information")
+    return keep_trying(lambda: _query(url), urllib2.URLError, "get user repository information")
 
 def github_check_authentication(urls, username, password, token):
     """
     Checks that username & password is valid.
     """
-    _query(urls.api_url, username, password, token)
+    _query(urls.api_url, None, username=username, password=password, token=token)
 
 
-def github_add_comment_to_pull_request(urls, username, password, token, n, comment):
+def github_add_comment_to_pull_request(urls, n, comment):
     """
     Adds a 'comment' to the pull request 'n'.
-
-    Currently it needs github username and password (as strings).
     """
     enc_comment = json.dumps(
         {
@@ -88,18 +88,18 @@ def github_add_comment_to_pull_request(urls, username, password, token, n, comme
         }
     )
     url = urls.issue_comment_template % n
-    response = _query(url, username, password, token, enc_comment)
+    response = _query(url, enc_comment)
     assert response["body"] == comment
 
 
-def github_list_pull_requests(urls, username, password, token, numbers_only=False):
+def github_list_pull_requests(urls, numbers_only=False):
     """
     Returns the pull requests numbers.
 
     It returns a tuple of (nonmergeable, mergeable), where "nonmergeable"
     and "mergeable" are lists of the pull requests numbers.
     """
-    pulls = github_get_pull_request_all(urls, username, password, token)
+    pulls = github_get_pull_request_all(urls)
     formatted_pulls = []
     print "Total pull count", len(pulls)
     sys.stdout.write("Processing pulls...")
@@ -107,7 +107,7 @@ def github_list_pull_requests(urls, username, password, token, numbers_only=Fals
         n = pull["number"]
         sys.stdout.write(" %d" % n)
         sys.stdout.flush()
-        pull_info = github_get_pull_request(urls, username, password, token, n)
+        pull_info = github_get_pull_request(urls, n)
         if not pull_info:
             # Pull request is an issue
             continue
@@ -121,7 +121,7 @@ def github_list_pull_requests(urls, username, password, token, numbers_only=Fals
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
         user = pull["user"]["login"]
-        user_info = github_get_user_info(urls, user, username, password, token)
+        user_info = github_get_user_info(urls, user)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
         branch_against = pull["base"]["ref"]
@@ -242,13 +242,27 @@ def _link2dict(l):
     return d
 
 
-def _query(url, username=None, password=None, token=None, data=""):
+def _query(url, data="", **kwargs):
     """
     Query github API,
     if username and password are presented, then the query is executed from the user account
 
     In case of a multipage result, query the next page and return all results.
     """
+    username = kwargs.get("username", None)
+    password = kwargs.get("password", None)
+    token = kwargs.get("token", None)
+
+    if not ((username and password) or (username and token)):
+        conf_file = _load_conf_file()
+        username = conf_file.get("user", None)
+        token = conf_file.get("token", None)
+
+        if not token:
+            token_path = conf_file.get("token_file", None)
+            if token_path:
+                token = _load_token(token_path)
+
     request = urllib2.Request(url)
     # Add authentication headers to request, if username and password presented
     if username:
@@ -278,6 +292,42 @@ def _query(url, username=None, password=None, token=None, data=""):
     link = http_response.headers.get("Link")
     nexturl = _link2dict(link).get("next") if link else None
     if nexturl:
-        response_body.extend(_query(nexturl, username, password, token, data))
+        response_body.extend(_query(nexturl, data, username=username, password=password, token=token))
 
     return response_body
+
+def _load_conf_file():
+    conf_file = os.path.normpath("~/.sympy/sympy-bot.conf")  #Set to default config path
+    conf_file = os.path.expanduser(conf_file)
+
+    parser = ConfigParser.SafeConfigParser()
+    default_items = {}
+    if os.path.exists(conf_file):
+        with open(conf_file) as conf:
+            try:
+                parser.readfp(conf)
+            except IOError as e:
+                print "WARNING: Unable to open config file:", e
+            except ConfigParser.Error as e:
+                print "WARNING: Unable to parse config file:", e
+            else:
+                try:
+                    default_items = dict(parser.items("DEFAULT", raw=True))
+                except ConfigParser.NoSectionError:
+                    pass
+    return default_items
+
+def _load_token(path):
+    token = None
+    if path is None:
+        return token
+    path = os.path.expanduser(path)
+    path = os.path.abspath(path)
+    if os.path.isfile(path):
+        try:
+            with open(path) as f:
+                token = f.readline()
+                token = token.strip()
+        except IOError as e:
+            print "Unable to open token file:", e
+    return token
