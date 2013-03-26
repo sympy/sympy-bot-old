@@ -43,7 +43,7 @@ need to have any local copy. However, if you do have a local copy already, you
 can skip most of the download (which might take a few minutes on slower
 connections) by passing a ``--reference`` option to sympy-bot::
 
-    ./sympy-bot --reference ~/repo/git/sympy review 268
+    ./sympy-bot review 268 --reference ~/repo/git/sympy
 
 This gets passed to git, see ``git clone --help`` for more information. Then
 sympy-bot starts testing the branch immediately, even if you have a slower
