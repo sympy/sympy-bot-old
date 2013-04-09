@@ -254,14 +254,14 @@ def _query(url, data="", **kwargs):
     token = kwargs.get("token", None)
 
     if not ((username and password) or (username and token)):
-        conf_file = _load_conf_file()
+        conf_file = load_conf_file()
         username = conf_file.get("user", None)
         token = conf_file.get("token", None)
 
         if not token:
             token_path = conf_file.get("token_file", None)
             if token_path:
-                token = _load_token(token_path)
+                token = load_token(token_path)
 
     request = urllib2.Request(url)
     # Add authentication headers to request, if username and password presented
@@ -296,28 +296,49 @@ def _query(url, data="", **kwargs):
 
     return response_body
 
-def _load_conf_file():
+def load_conf_file(**kwargs):
+    profile = kwargs.get("profile", None);
+    default_section = "DEFAULT"
     conf_file = os.path.normpath("~/.sympy/sympy-bot.conf")  #Set to default config path
     conf_file = os.path.expanduser(conf_file)
 
     parser = ConfigParser.SafeConfigParser()
     default_items = {}
     if os.path.exists(conf_file):
-        with open(conf_file) as conf:
+        if profile is not None:
+            print "> Using config file %s" % conf_file
+        with open(conf_file) as f:
             try:
-                parser.readfp(conf)
+                parser.readfp(f)
             except IOError as e:
-                print "WARNING: Unable to open config file:", e
+                if profile is not None:
+                    print "> WARNING: Unable to open config file:", e
             except ConfigParser.Error as e:
-                print "WARNING: Unable to parse config file:", e
+                if profile is not None:
+                    print "> WARNING: Unable to parse config file:", e
             else:
+                if profile is not None:
+                    print "> Loaded configuration file"
+
+                # Try to get default items, as the following will not be true:
+                # parser.has_section("DEFAULT")
                 try:
-                    default_items = dict(parser.items("DEFAULT", raw=True))
+                    default_items = dict(parser.items(default_section, raw=True))
                 except ConfigParser.NoSectionError:
                     pass
+
+                if profile is not None:
+                    if profile.upper() == default_section:
+                        items = default_items
+                    elif parser.has_section(profile):
+                        items = dict(parser.items(profile, vars=default_items))
+                    else:
+                        raise ConfigParser.Error("Configuration file does not contain profile: %s" % profile)
+
+                    return items
     return default_items
 
-def _load_token(path):
+def load_token(path):
     token = None
     if path is None:
         return token

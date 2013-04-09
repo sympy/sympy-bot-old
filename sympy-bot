@@ -14,7 +14,8 @@ from utils.cmd import (cmd, get_interpreter_version_info, get_platform_version,
         get_sphinx_version)
 from utils.github import (github_add_comment_to_pull_request,
         github_authenticate, github_get_pull_request, github_get_user_info,
-        github_get_user_repos, github_list_pull_requests)
+        github_get_user_repos, github_list_pull_requests, load_conf_file,
+        load_token)
 from utils.reviews import reviews_sympy_org_upload
 from utils.testrunner import run_tests, get_hashes, merge_branch, fetch_branch
 from utils.url_templates import URLs
@@ -132,7 +133,7 @@ def main():
     # Initial parse to print help
     options = parser.parse_args()
     # Load configuration and set defaults from it
-    config = load_config_file(options.profile)
+    config = load_conf_file(profile = options.profile)
     # Parse args that should be booleans, but come as strings from ConfigParser
     for i in boolargs:
         if i in config and isinstance(config[i], str):
@@ -218,7 +219,7 @@ def main():
 
         if not options.no_upload and options.comment:
             if not options.token and options.token_file:
-                options.token = load_token_file(options.token_file)
+                options.token = load_token(options.token_file)
             username, password, token = github_authenticate(urls, options.user, options.token)
         else:
             username = password = token = None
@@ -249,41 +250,6 @@ def main():
         except KeyboardInterrupt:
             print "\n> Quitting on signal SIGINT."
             sys.exit(1)
-
-def load_config_file(profile):
-    conf_file = os.path.normpath('~/.sympy/sympy-bot.conf')
-    conf_file = os.path.expanduser(conf_file)
-
-    parser = ConfigParser.SafeConfigParser()
-
-    if os.path.exists(conf_file):
-        print "> Using config file %s" % conf_file
-        with open(conf_file) as f:
-            try:
-                parser.readfp(f)
-            except IOError as e:
-                print "> WARNING: Unable to open config file:", e
-            except ConfigParser.Error as e:
-                print "> WARNING: Unable to parse config file:", e
-            else:
-                print "> Loaded configuration file"
-
-                # Try to get default items, as the following will not be true:
-                # parser.has_section("DEFAULT")
-                try:
-                    default_items = dict(parser.items(default_section, raw=True))
-                except ConfigParser.NoSectionError:
-                    default_items = {}
-
-                if profile.upper() == default_section:
-                    items = default_items
-                elif parser.has_section(profile):
-                    items = dict(parser.items(profile, vars=default_items))
-                else:
-                    raise ConfigParser.Error("Configuration file does not contain profile: %s" % profile)
-
-                return items
-    return {}
 
 def save_config_file(username, token, token_file):
     filename = "~/.sympy/sympy-bot.conf"
@@ -320,26 +286,6 @@ def save_config_file(username, token, token_file):
         print "> Unable to save configuration file"
         return
     print "> Configuration file saved"
-
-def load_token_file(path):
-    print "> Using token file %s" % path
-
-    path = os.path.expanduser(path)
-    path = os.path.abspath(path)
-
-    if os.path.isfile(path):
-        try:
-            with open(path) as f:
-                token = f.readline()
-        except IOError:
-            print "> Unable to read token file"
-            return
-    else:
-        print "> Token file does not exist"
-        return
-
-    return token.strip()
-
 
 def save_token_file(token):
     token_file = raw_input("> Enter token file location [~/.sympy/token] ")
