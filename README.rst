@@ -85,7 +85,7 @@ information on your own, you can add the following line::
 
 You can create this token from the command line by running::
 
-    curl -u 'username' -d '{"scopes":["repo"],"note":"SymPy Bot"}' \
+    curl -u 'username' -d '{"scopes":["public_repo"],"note":"SymPy Bot"}' \
     https://api.github.com/authorizations
 
 and enter your password at the prompt. In the information that is printed,
