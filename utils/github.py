@@ -20,7 +20,7 @@ https to authenticate with GitHub, otherwise not saved anywhere else:\
 def generate_token(urls, username, password, name="SymPy Bot"):
     enc_data = json.dumps(
         {
-            "scopes": ["repo"],
+            "scopes": ["public_repo"],
             "note": name
         }
     )
