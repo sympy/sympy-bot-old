@@ -655,7 +655,7 @@ sympy-bot tests again."""
 {branch_name} ({branch_hash}) into {master_name} ({master_hash}).
 {atuser}Please fix the test failures."""
     elif all([status == "Passed" for status in report_status.itervalues()]):
-        summary = """:eight_spoked_asterisk: Passed after merging \
+        summary = """:white_check_mark: Passed after merging \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})."""
     else:
         raise ValueError("Unknown report_status")
@@ -699,7 +699,7 @@ status_symbols = {
     "conflicts": ":exclamation:",
     "fetch": ":x:",
     "Failed": ":red_circle:",
-    "Passed": ":eight_spoked_asterisk:",
+    "Passed": ":white_check_mark:",
 }
 
 def get_summary(status, report_url):
