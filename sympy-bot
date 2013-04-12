@@ -789,8 +789,9 @@ def get_summary(status, report_url):
     return summary.format(report_url=report_url)
 
 def get_doc_coverage_summary(status, report_url, log, master_log):
+    basic_summary = get_summary(status, report_url)
     if status not in {"Passed", "Failed"}:
-        return get_summary(status, report_url)
+        return basic_summary
 
     # TODO: Add a flag to coverage_doctest.py to output this data in a way that
     # is easier to parse
@@ -805,13 +806,13 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
 
         return "Could not parse output of coverage_doctest.py"
 
-    numbers = {'status': status, 'report_url': report_url}
+    numbers = {'status': status, 'report_url': report_url, 'basic_summary': basic_summary}
     numbers['doctest_percent'], numbers['doctest_covered'], numbers['doctest_total'] = doctest_match.groups()
     numbers['sphinx_percent'], numbers['sphinx_covered'], numbers['sphinx_total'] = sphinx_match.groups()
     numbers['master_doctest_percent'], numbers['master_doctest_covered'], numbers['master_doctest_total'] = master_doctest_match.groups()
     numbers['master_sphinx_percent'], numbers['master_sphinx_covered'], numbers['master_sphinx_total'] = master_sphinx_match.groups()
 
-    return """([{status}]({report_url}))
+    return """({basic_summary})
 {doctest_percent}% ({doctest_covered} of {doctest_total}) of functions have doctests
 {sphinx_percent}% ({sphinx_covered} of {sphinx_total}) of functions are imported into Sphinx
 For comparison, in master, the coverage is
