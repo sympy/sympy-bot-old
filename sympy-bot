@@ -813,10 +813,10 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
 
     return """([{status}]({report_url}))
 {doctest_percent}% ({doctest_covered} of {doctest_total}) of functions have doctests
-{sphinx_percent}% ({sphinx_covered} of {sphinx_covered}) of functions are imported into Sphinx
+{sphinx_percent}% ({sphinx_covered} of {sphinx_total}) of functions are imported into Sphinx
 For comparison, in master, the coverage is
 {master_doctest_percent}% ({master_doctest_covered} of {master_doctest_total}) of functions have doctests
-{master_sphinx_percent}% ({master_sphinx_covered} of {master_sphinx_covered}) of functions are imported into Sphinx
+{master_sphinx_percent}% ({master_sphinx_covered} of {master_sphinx_total}) of functions are imported into Sphinx
 """.format(**numbers)
 
 if __name__ == "__main__":
