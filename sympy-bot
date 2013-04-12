@@ -6,6 +6,7 @@ import stat
 import sys
 import os
 import ConfigParser
+import re
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, ArgumentTypeError
 from tempfile import mkdtemp
@@ -70,6 +71,9 @@ def main():
     parser_review.add_argument("-D", "--build-docs", nargs="?", const=True,
         default=False, help="Test the building of the Sphinx HTML "
         "documentation")
+    parser_review.add_argument("--doc-coverage", nargs="?", const=True,
+        default=False, help="""Run the bin/coverage_doctest.py script, and
+        report the results. Implies --build-docs.""")
     parser_review.add_argument("--no-comment", dest="comment",
         action="store_false", help="Upload review but do not submit summary "
         "comment to pull request on GitHub")
@@ -128,7 +132,8 @@ def main():
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
 
-    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2", "python3", "copy_py3k_sympy",}
+    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2",
+        "python3", "copy_py3k_sympy", "doc_coverage",}
     # Initial parse to print help
     options = parser.parse_args()
     # Load configuration and set defaults from it
@@ -161,6 +166,9 @@ def main():
     parser.set_defaults(**config)
     # Parse args
     options = parser.parse_args()
+
+    if options.doc_coverage:
+        options.build_docs = True
 
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
@@ -570,9 +578,23 @@ def dispatch_reviews(config, urls, **kwargs):
                     log.write(result["log"])
                 print "> Results logged to %s" % log_file
 
+                if config.doc_coverage:
+                    if not result["result"] == "Passed":
+                        print "> Docs did not build correctly. Skipping coverage."
+                    else:
+                        # Run doc coverage script
+                        print "> Running bin/coverage_doctest.py"
+                        # TODO: Should we pass -v to coverage_doctest.py?
+                        doc_coverage_result = run_tests(repo_url, branch, repo_path,
+                            "./bin/coverage_doctest.py --no-colors", False, merge_commit)
+                        if doc_coverage_result["result"] == "error":
+                            print "> There was an error. Report not uploaded."
+                            sys.exit(1)
+                        print "> Done."
+
                 # Upload results
                 if not config.no_upload:
-                    print "> Uploading test results"
+                    print "> Uploading doc build"
                     url_base = config.server
                     data = {
                         "num" : n,
@@ -583,14 +605,28 @@ def dispatch_reviews(config, urls, **kwargs):
                     }
                     report_url = reviews_sympy_org_upload(data, url_base)
                     print "> Uploaded report for building docs at: %s" % report_url
+
+                    if config.doc_coverage and result["result"] == "Passed":
+                        print "> Uploading doc coverage"
+                        data["result"] = doc_coverage_result["result"]
+                        data["log"] = doc_coverage_result["log"]
+                        doc_coverage_report_url = reviews_sympy_org_upload(data, url_base)
+                        print "> Uploaded report for building docs at: %s" % doc_coverage_report_url
                 else:
                     report_url = "(report was not uploaded)"
+                    doc_coverage_report_url = "(report was not uploaded)"
 
                 pull_review["build_docs"] = {
                     "result" : result["result"],
                     "url" : report_url,
                 }
-                del result
+                if config.doc_coverage and result["result"] == "Passed":
+                    pull_review["doc_coverage"] = {
+                        "result": doc_coverage_result["result"],
+                        "url": doc_coverage_report_url,
+                        "log": doc_coverage_result["log"],
+                        }
+                del result, doc_coverage_result
                 print
 
         reviews[n] = pull_review
@@ -606,7 +642,8 @@ def dispatch_reviews(config, urls, **kwargs):
         review = formulate_review(report_status, report_url, master_hash,
             branch_hash, config.interpreter, config.testcommand,
             config.build_docs, config.build_docs_command, users[n],
-            branches[n], merge_commit)
+            branches[n], merge_commit,
+            doc_coverage_log=reviews[n].get('doc_coverage', {}).get('log', None))
 
         print "> Review:"
         print
@@ -623,7 +660,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
 def formulate_review(report_status, report_url, master_hash, branch_hash,
                      interpreter, testcommand, build_docs, build_docs_command,
-                     user, branch_name, merge_commit):
+                     user, branch_name, merge_commit, doc_coverage_log=None):
     if user:
         atuser = "@"+user+": "
         branch_name = user + '/' + branch_name
@@ -650,11 +687,13 @@ See the report for a list of the merge conflicts."""
         summary = """:x: Could not fetch the branch {branch_name}.
 {atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
 sympy-bot tests again."""
-    elif any([status == "Failed" for status in report_status.itervalues()]):
+    # XXX: When we get full doctest coverage, remove special case of
+    # doc_coverage below.
+    elif any([status == "Failed" and test != "doc_coverage" for (test, status) in report_status.iteritems()]):
         summary = """:red_circle: Failed after merging \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash}).
 {atuser}Please fix the test failures."""
-    elif all([status == "Passed" for status in report_status.itervalues()]):
+    elif all([status == "Passed" or test == "doc_coverage" for (test, status) in report_status.iteritems()]):
         summary = """:white_check_mark: Passed after merging \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})."""
     else:
@@ -691,6 +730,16 @@ sympy-bot tests again."""
 
         report += "{symbol} **Sphinx {sphinx_version}**: {summary}{additional_info}\n".format(**details)
 
+    if "doc_coverage" in report_status.keys():
+        details = {}
+        details['status'] = report_status["doc_coverage"]
+        # TODO: Use better symbols
+        details['symbol'] = status_symbols[details['status']]
+        details['summary'] = get_doc_coverage_summary(details['status'],
+            report_url['doc_coverage'], doc_coverage_log)
+
+        report += "{symbol} **Doc Coverage**: {summary}\n".format(**details)
+
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
     return report.format(**formatdict)
@@ -714,6 +763,28 @@ def get_summary(status, report_url):
     else:
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
+
+def get_doc_coverage_summary(status, report_url, log):
+    if status not in {"Passed", "Failed"}:
+        return get_summary(status, report_url)
+
+    # TODO: Add a flag to coverage_doctest.py to output this data in a way that
+    # is easier to parse
+    doctest_score_re = re.compile(r"TOTAL DOCTEST SCORE for sympy: (\d+)% \((\d+) of (\d+)\)")
+    sphinx_score_re = re.compile(r"TOTAL SPHINX SCORE for sympy: (\d+)% \((\d+) of (\d+)\)")
+    doctest_match = doctest_score_re.search(log)
+    sphinx_match = sphinx_score_re.search(log)
+    if not doctest_match or not sphinx_match:
+        return "Could not parse output of coverage_doctest.py"
+
+    numbers = {'status': status, 'report_url': report_url}
+    numbers['doctest_percent'], numbers['doctest_covered'], numbers['doctest_total'] = doctest_match.groups()
+    numbers['sphinx_percent'], numbers['sphinx_covered'], numbers['sphinx_total'] = sphinx_match.groups()
+
+    return """([{status}]({report_url}))
+{doctest_percent}% ({doctest_covered} of {doctest_total}) of functions have doctests
+{sphinx_percent}% ({sphinx_covered} of {sphinx_covered}) of functions are imported into Sphinx
+""".format(**numbers)
 
 if __name__ == "__main__":
     main()
