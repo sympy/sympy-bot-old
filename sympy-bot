@@ -842,10 +842,11 @@ def get_doc_coverage_summary(status, report_url, log, master_log, master_name):
         0: 'blue_equals',
         1: 'green_up',
     }
-    numbers['doctest_img'] = imgdict[cmp(numbers['doctest_full_percent'],
-        numbers['master_doctest_full_percent'])]
-    numbers['sphinx_img'] = imgdict[cmp(numbers['sphinx_full_percent'],
-        numbers['master_sphinx_full_percent'])]
+
+    numbers['doctest_img'] = imgdict[cmp(int(numbers['doctest_covered'])/int(numbers['doctest_total']),
+        int(numbers['master_doctest_covered'])/int(numbers['master_doctest_total']))]
+    numbers['sphinx_img'] = imgdict[cmp(int(numbers['sphinx_covered'])/int(numbers['sphinx_total']),
+        int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total']))]
 
     numbers['doctest_html_img'] = imgtemplate.format(imgname=numbers['doctest_img'])
     numbers['sphinx_html_img'] = imgtemplate.format(imgname=numbers['sphinx_img'])
