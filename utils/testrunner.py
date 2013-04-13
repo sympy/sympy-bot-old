@@ -1,7 +1,5 @@
 import os
-import sys
 import re
-import subprocess
 
 from utils.cmd import cmd, cmd2, CmdException
 

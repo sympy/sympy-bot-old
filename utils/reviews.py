@@ -1,5 +1,3 @@
-import sys
-import time
 import urllib2
 
 from jsonrpc import JSONRPCService
