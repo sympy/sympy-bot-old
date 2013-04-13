@@ -28,7 +28,7 @@ default_build_docs_command = "make clean; make html-errors"
 default_interpreter = ["python"]
 default_interpreter3 = ["python3"]
 default_protocol = "https"
-doc_coverage_command = "./bin/coverage_doctest.py --no-colors"
+doc_coverage_command = "./bin/coverage_doctest.py --no-colors -v"
 default_section = "DEFAULT"
 
 def main():
