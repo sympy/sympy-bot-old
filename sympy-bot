@@ -823,16 +823,16 @@ def get_doc_coverage_summary(status, report_url, log, master_log, master_name):
     # Get the percentages with exactly the number of digits needed to see a
     # difference of one.
     numbers['doctest_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['doctest_total']),
-        10))) - 2,
+        10) + 1)) - 2,
         int(numbers['doctest_covered'])/int(numbers['doctest_total'])*100)
     numbers['sphinx_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['sphinx_total']),
-        10))) - 2,
+        10) + 1)) - 2,
         int(numbers['sphinx_covered'])/int(numbers['sphinx_total'])*100)
     numbers['master_doctest_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['master_doctest_total']),
-        10))) - 2,
+        10) + 1)) - 2,
         int(numbers['master_doctest_covered'])/int(numbers['master_doctest_total'])*100)
     numbers['master_sphinx_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['master_sphinx_total']),
-        10))) - 2,
+        10) + 1)) - 2,
         int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total'])*100)
 
     # XXX Change this when the pull request is merged
