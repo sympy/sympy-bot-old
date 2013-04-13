@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+from __future__ import division
+
 import codecs
 import shutil
 import stat
@@ -7,6 +9,7 @@ import sys
 import os
 import ConfigParser
 import re
+import math
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, ArgumentTypeError
 from tempfile import mkdtemp
@@ -812,12 +815,24 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
     numbers['master_doctest_percent'], numbers['master_doctest_covered'], numbers['master_doctest_total'] = master_doctest_match.groups()
     numbers['master_sphinx_percent'], numbers['master_sphinx_covered'], numbers['master_sphinx_total'] = master_sphinx_match.groups()
 
+    # Get the percentages with exactly the number of digits needed to see a
+    # difference of one.
+    numbers['doctest_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['doctest_total']),
+        10))) - 2,
+        int(numbers['doctest_covered'])/int(numbers['doctest_total'])*100)
+    numbers['sphinx_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['sphinx_total']),
+        10))) - 2,
+        int(numbers['sphinx_covered'])/int(numbers['sphinx_total'])*100)
+    numbers['master_doctest_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['master_doctest_total']),
+        10))) - 2,
+        int(numbers['master_doctest_covered'])/int(numbers['master_doctest_total'])*100)
+    numbers['master_sphinx_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['master_sphinx_total']),
+        10))) - 2,
+        int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total'])*100)
+
     return """({basic_summary})
-{doctest_percent}% ({doctest_covered} of {doctest_total}) of functions have doctests
-{sphinx_percent}% ({sphinx_covered} of {sphinx_total}) of functions are imported into Sphinx
-For comparison, in master, the coverage is
-{master_doctest_percent}% ({master_doctest_covered} of {master_doctest_total}) of functions have doctests
-{master_sphinx_percent}% ({master_sphinx_covered} of {master_sphinx_total}) of functions are imported into Sphinx
+{doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in master)
+{sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in master)
 """.format(**numbers)
 
 if __name__ == "__main__":
