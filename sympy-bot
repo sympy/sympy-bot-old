@@ -612,14 +612,6 @@ def dispatch_reviews(config, urls, **kwargs):
                             print "> There was an error. Report not uploaded."
                             sys.exit(1)
 
-                        if config.doc_coverage and result["result"] == "Passed":
-                            pull_review["doc_coverage"] = {
-                                "result": doc_coverage_result["result"],
-                                "url": doc_coverage_report_url,
-                                "log": doc_coverage_result["log"],
-                                "master_log": master_doc_coverage_result["log"]
-                            }
-
                         print "> Done."
 
                 # Upload results
@@ -651,6 +643,14 @@ def dispatch_reviews(config, urls, **kwargs):
                     "result" : result["result"],
                     "url" : report_url,
                 }
+                if config.doc_coverage and result["result"] == "Passed":
+                    pull_review["doc_coverage"] = {
+                        "result": doc_coverage_result["result"],
+                        "url": doc_coverage_report_url,
+                        "log": doc_coverage_result["log"],
+                        "master_log": master_doc_coverage_result["log"]
+                        }
+
                 del result
                 print
 
