@@ -830,9 +830,24 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
         10))) - 2,
         int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total'])*100)
 
+    # XXX Change this when the pull request is merged
+    imgtemplate = '<img src="https://raw.github.com/asmeurer/sympy-bot/doctest_coverage/img/{imgname}.png" width="20" height="20" align="absmiddle" border="0">'
+    imgdict = {
+        -1: 'red_down',
+        0: 'blue_equals',
+        1: 'green_up',
+    }
+    numbers['doctest_img'] = imgdict[cmp(numbers['doctest_full_percent'],
+        numbers['master_doctest_full_percent'])]
+    numbers['sphinx_img'] = imgdict[cmp(numbers['sphinx_full_percent'],
+        numbers['master_sphinx_full_percent'])]
+
+    numbers['doctest_html_img'] = imgtemplate.format(imgname=numbers['doctest_img'])
+    numbers['sphinx_html_img'] = imgtemplate.format(imgname=numbers['sphinx_img'])
+
     return """({basic_summary})
-{doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in master)
-{sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in master)
+{doctest_html_img} {doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in master)
+{sphinx_html_img} {sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in master)
 """.format(**numbers)
 
 if __name__ == "__main__":
