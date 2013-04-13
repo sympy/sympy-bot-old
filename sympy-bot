@@ -845,7 +845,7 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
     numbers['doctest_html_img'] = imgtemplate.format(imgname=numbers['doctest_img'])
     numbers['sphinx_html_img'] = imgtemplate.format(imgname=numbers['sphinx_img'])
 
-    return """({basic_summary})
+    return """{basic_summary}
 {doctest_html_img} {doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in master)
 {sphinx_html_img} {sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in master)
 """.format(**numbers)
