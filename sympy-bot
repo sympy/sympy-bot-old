@@ -762,7 +762,8 @@ sympy-bot tests again."""
         details = {}
         details['status'] = report_status["doc_coverage"]
         details['symbol'], details['summary'] = get_doc_coverage_summary(details['status'],
-            report_url['doc_coverage'], doc_coverage_log, master_doc_coverage_log)
+            report_url['doc_coverage'], doc_coverage_log,
+            master_doc_coverage_log, master_name)
 
         report += "{symbol} **Doc Coverage**: {summary}\n".format(**details)
 
@@ -790,7 +791,7 @@ def get_summary(status, report_url):
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
 
-def get_doc_coverage_summary(status, report_url, log, master_log):
+def get_doc_coverage_summary(status, report_url, log, master_log, master_name):
     basic_summary = get_summary(status, report_url)
     if status not in {"Passed", "Failed"}:
         return status_symbols[status], basic_summary
@@ -808,7 +809,12 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
 
         return status_symbols['fetch'], "Could not parse output of coverage_doctest.py"
 
-    numbers = {'status': status, 'report_url': report_url, 'basic_summary': basic_summary}
+    numbers = {
+        'status': status,
+        'report_url': report_url,
+        'basic_summary': basic_summary,
+        'master_name': master_name,
+    }
     numbers['doctest_percent'], numbers['doctest_covered'], numbers['doctest_total'] = doctest_match.groups()
     numbers['sphinx_percent'], numbers['sphinx_covered'], numbers['sphinx_total'] = sphinx_match.groups()
     numbers['master_doctest_percent'], numbers['master_doctest_covered'], numbers['master_doctest_total'] = master_doctest_match.groups()
@@ -855,8 +861,8 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
         numbers['basic_summary'] = "unchanged"
 
     return symbol, """[{basic_summary}]({report_url})
-{doctest_html_img} {doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in master)
-{sphinx_html_img} {sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in master)
+{doctest_html_img} {doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in {master_name})
+{sphinx_html_img} {sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in {master_name})
 """.format(**numbers)
 
 if __name__ == "__main__":
