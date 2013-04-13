@@ -631,7 +631,7 @@ def dispatch_reviews(config, urls, **kwargs):
                     if config.doc_coverage and result["result"] == "Passed":
                         print "> Uploading doc coverage"
                         data["result"] = doc_coverage_result["result"]
-                        data["log"] = (doc_coverage_result["log"] + '\nMaster Doctest Coverage\n'
+                        data["log"] = (doc_coverage_result["log"] + '\nMaster Doctest Coverage\n\n'
                             + master_doc_coverage_result["log"])
                         doc_coverage_report_url = reviews_sympy_org_upload(data, url_base)
                         print "> Uploaded report for building docs at: %s" % doc_coverage_report_url
@@ -845,15 +845,15 @@ def get_doc_coverage_summary(status, report_url, log, master_log):
 
     if imgdict[-1] in {numbers['doctest_img'], numbers['sphinx_img']}:
         symbol = imgtemplate.format(imgname=imgdict[-1])
-        basic_summary = "decreased"
+        numbers['basic_summary'] = "decreased"
     elif imgdict[1] in {numbers['doctest_img'], numbers['sphinx_img']}:
         symbol = imgtemplate.format(imgname=imgdict[1])
-        basic_summary = "increased"
+        numbers['basic_summary'] = "increased"
     else:
         symbol = imgtemplate.format(imgname=imgdict[0])
-        basic_summary = "unchanged"
+        numbers['basic_summary'] = "unchanged"
 
-    return symbol, """{basic_summary}
+    return symbol, """[{basic_summary}]({report_url})
 {doctest_html_img} {doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in master)
 {sphinx_html_img} {sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in master)
 """.format(**numbers)
