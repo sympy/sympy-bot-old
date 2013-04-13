@@ -170,9 +170,6 @@ def main():
     # Parse args
     options = parser.parse_args()
 
-    if options.doc_coverage:
-        options.build_docs = True
-
     gh_user, gh_repo = options.repository.split("/")
     urls = URLs(user=gh_user, repo=gh_repo)
 
@@ -181,6 +178,9 @@ def main():
     elif options.command == "review":
         if options.copy_py3k_sympy and not options.reference:
              parser.error("--copy-py3k-sympy requires --reference")
+
+        if options.doc_coverage:
+            options.build_docs = True
 
         # Set bool args
         for i in boolargs:
@@ -612,6 +612,14 @@ def dispatch_reviews(config, urls, **kwargs):
                             print "> There was an error. Report not uploaded."
                             sys.exit(1)
 
+                        if config.doc_coverage and result["result"] == "Passed":
+                            pull_review["doc_coverage"] = {
+                                "result": doc_coverage_result["result"],
+                                "url": doc_coverage_report_url,
+                                "log": doc_coverage_result["log"],
+                                "master_log": master_doc_coverage_result["log"]
+                            }
+
                         print "> Done."
 
                 # Upload results
@@ -643,14 +651,7 @@ def dispatch_reviews(config, urls, **kwargs):
                     "result" : result["result"],
                     "url" : report_url,
                 }
-                if config.doc_coverage and result["result"] == "Passed":
-                    pull_review["doc_coverage"] = {
-                        "result": doc_coverage_result["result"],
-                        "url": doc_coverage_report_url,
-                        "log": doc_coverage_result["log"],
-                        "master_log": master_doc_coverage_result["log"]
-                        }
-                del result, doc_coverage_result
+                del result
                 print
 
         reviews[n] = pull_review
