@@ -719,9 +719,12 @@ def get_summary(status, report_url):
     return summary.format(report_url=report_url)
 
 def get_import_time(repo_path):
-    command = "python " + repo_path + "/bin/test_import.py"
-    time = check_output(command, shell=True)
-    return time.strip()
+    command = repo_path + "/bin/test_import"
+    time = check_output(command, cwd=repo_path, shell=True)
+    time = time.split()
+    length = len(time)
+    time_str = time[length-3] + " " + time[length-2]+ " " + time[length-1]
+    return time_str
 
 if __name__ == "__main__":
     main()
