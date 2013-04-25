@@ -18,6 +18,7 @@ from utils.github import (github_add_comment_to_pull_request,
 from utils.reviews import reviews_sympy_org_upload
 from utils.testrunner import run_tests, get_hashes, merge_branch, fetch_branch
 from utils.url_templates import URLs
+from subprocess import check_output
 
 default_testcommand = "setup.py test"
 default_build_docs_command = "make clean; make html-errors"
@@ -606,7 +607,7 @@ def dispatch_reviews(config, urls, **kwargs):
         review = formulate_review(report_status, report_url, master_hash,
             branch_hash, config.interpreter, config.testcommand,
             config.build_docs, config.build_docs_command, users[n],
-            branches[n], merge_commit)
+            branches[n], merge_commit, repo_path)
 
         print "> Review:"
         print
@@ -623,7 +624,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
 def formulate_review(report_status, report_url, master_hash, branch_hash,
                      interpreter, testcommand, build_docs, build_docs_command,
-                     user, branch_name, merge_commit):
+                     user, branch_name, merge_commit, repo_path):
     if user:
         atuser = "@"+user+": "
         branch_name = user + '/' + branch_name
@@ -655,7 +656,7 @@ sympy-bot tests again."""
 {branch_name} ({branch_hash}) into {master_name} ({master_hash}).
 {atuser}Please fix the test failures."""
     elif all([status == "Passed" for status in report_status.itervalues()]):
-        summary = """:eight_spoked_asterisk: Passed after merging \
+        summary = """:white_check_mark: Passed after merging \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})."""
     else:
         raise ValueError("Unknown report_status")
@@ -691,6 +692,8 @@ sympy-bot tests again."""
 
         report += "{symbol} **Sphinx {sphinx_version}**: {summary}{additional_info}\n".format(**details)
 
+    import_time = get_import_time(repo_path)
+    report += ":clock10: **Import Time**: "+ import_time + " seconds"
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
     return report.format(**formatdict)
@@ -699,7 +702,7 @@ status_symbols = {
     "conflicts": ":exclamation:",
     "fetch": ":x:",
     "Failed": ":red_circle:",
-    "Passed": ":eight_spoked_asterisk:",
+    "Passed": ":white_check_mark:",
 }
 
 def get_summary(status, report_url):
@@ -714,6 +717,11 @@ def get_summary(status, report_url):
     else:
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
+
+def get_import_time(repo_path):
+    command = "python " + repo_path + "/bin/test_import.py"
+    time = check_output(command, shell=True)
+    return time.strip()
 
 if __name__ == "__main__":
     main()
