@@ -18,6 +18,7 @@ from utils.github import (github_add_comment_to_pull_request,
 from utils.reviews import reviews_sympy_org_upload
 from utils.testrunner import run_tests, get_hashes, merge_branch, fetch_branch
 from utils.url_templates import URLs
+from subprocess import check_output
 
 default_testcommand = "setup.py test"
 default_build_docs_command = "make clean; make html-errors"
@@ -115,6 +116,9 @@ def main():
         default=False, help="Copy the py3k-sympy directory from the reference "
         "directory.  This requires -r.")
 
+    parser_review.add_argument("--no-import-time", nargs="?",const=True,
+        default=False, help="Not to test import time")
+
     parser_list = subparsers.add_parser("list",
         description="Lists available pull requests",
         help="Lists available pull requests",
@@ -128,11 +132,14 @@ def main():
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
 
-    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2", "python3", "copy_py3k_sympy",}
+    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2", "python3", "copy_py3k_sympy",
+        "no_import_time"}
     # Initial parse to print help
     options = parser.parse_args()
+
     # Load configuration and set defaults from it
     config = load_config_file(options.profile)
+
     # Parse args that should be booleans, but come as strings from ConfigParser
     for i in boolargs:
         if i in config and isinstance(config[i], str):
@@ -606,7 +613,7 @@ def dispatch_reviews(config, urls, **kwargs):
         review = formulate_review(report_status, report_url, master_hash,
             branch_hash, config.interpreter, config.testcommand,
             config.build_docs, config.build_docs_command, users[n],
-            branches[n], merge_commit)
+            branches[n], merge_commit, repo_path, config.no_import_time)
 
         print "> Review:"
         print
@@ -623,7 +630,7 @@ def dispatch_reviews(config, urls, **kwargs):
 
 def formulate_review(report_status, report_url, master_hash, branch_hash,
                      interpreter, testcommand, build_docs, build_docs_command,
-                     user, branch_name, merge_commit):
+                     user, branch_name, merge_commit, repo_path, no_import_time):
     if user:
         atuser = "@"+user+": "
         branch_name = user + '/' + branch_name
@@ -691,6 +698,11 @@ sympy-bot tests again."""
 
         report += "{symbol} **Sphinx {sphinx_version}**: {summary}{additional_info}\n".format(**details)
 
+
+    if no_import_time == False:
+        import_time = get_import_time(repo_path)
+        report += ":clock10: **Import Time**: "+ import_time + " seconds"
+    
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
     return report.format(**formatdict)
@@ -714,6 +726,14 @@ def get_summary(status, report_url):
     else:
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
+
+def get_import_time(repo_path):
+    command = repo_path + "/bin/test_import"
+    time = check_output(command, cwd=repo_path, shell=True)
+    time = time.split()
+    length = len(time)
+    time_str = time[length-3] + " " + time[length-2]+ " " + time[length-1]
+    return time_str
 
 if __name__ == "__main__":
     main()
