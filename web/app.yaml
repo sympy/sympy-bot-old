@@ -1,6 +1,7 @@
-application: sympy3
+application: sympy-reviews
 version: 6
-runtime: python
+runtime: python27
+threadsafe: no
 api_version: 1
 
 handlers:
