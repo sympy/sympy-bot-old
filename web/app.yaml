@@ -1,5 +1,5 @@
 application: sympy-reviews
-version: 6
+version: 7
 runtime: python27
 threadsafe: no
 api_version: 1
@@ -9,3 +9,6 @@ handlers:
   static_dir: static
 - url: /.*
   script: main.py
+
+builtins:
+- remote_api: on
