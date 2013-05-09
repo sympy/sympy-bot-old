@@ -12,3 +12,7 @@ handlers:
 
 builtins:
 - remote_api: on
+
+libraries:
+- name: django
+  version: "latest"
