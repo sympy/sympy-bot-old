@@ -1,5 +1,5 @@
 application: sympy3
-version: 6
+version: 7
 runtime: python
 api_version: 1
 
@@ -8,3 +8,6 @@ handlers:
   static_dir: static
 - url: /.*
   script: main.py
+
+builtins:
+- remote_api: on
