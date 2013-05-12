@@ -1,5 +1,5 @@
 application: sympy-reviews
-version: 7
+version: 8
 runtime: python27
 threadsafe: no
 api_version: 1
