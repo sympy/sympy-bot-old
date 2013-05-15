@@ -30,7 +30,7 @@ class JSONRPCMethod(object):
 
     def __getattr__(self, method):
         method = "%s.%s" % (self.method, method)
-        return self.__class__(self.url, method, auth)
+        return self.__class__(self.url, method, self.auth)
 
     def __call__(self, *params):
         if self.auth is not None:

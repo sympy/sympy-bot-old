@@ -1,17 +1,21 @@
 #! /usr/bin/env python
 
+from __future__ import division
+
 import codecs
 import shutil
 import stat
 import sys
 import os
 import ConfigParser
+import re
+import math
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, ArgumentTypeError
 from tempfile import mkdtemp
 
 from utils.cmd import (cmd, get_interpreter_version_info, get_platform_version,
-        get_sphinx_version)
+        get_sphinx_version, CmdException)
 from utils.github import (github_add_comment_to_pull_request,
         github_authenticate, github_get_pull_request, github_get_user_info,
         github_get_user_repos, github_list_pull_requests)
@@ -24,7 +28,7 @@ default_build_docs_command = "make clean; make html-errors"
 default_interpreter = ["python"]
 default_interpreter3 = ["python3"]
 default_protocol = "https"
-
+doc_coverage_command = "./bin/coverage_doctest.py --no-colors -v"
 default_section = "DEFAULT"
 
 def main():
@@ -70,6 +74,9 @@ def main():
     parser_review.add_argument("-D", "--build-docs", nargs="?", const=True,
         default=False, help="Test the building of the Sphinx HTML "
         "documentation")
+    parser_review.add_argument("--doc-coverage", nargs="?", const=True,
+        default=False, help="""Run the bin/coverage_doctest.py script, and
+        report the results. Implies --build-docs.""")
     parser_review.add_argument("--no-comment", dest="comment",
         action="store_false", help="Upload review but do not submit summary "
         "comment to pull request on GitHub")
@@ -128,7 +135,8 @@ def main():
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
 
-    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2", "python3", "copy_py3k_sympy",}
+    boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2",
+        "python3", "copy_py3k_sympy", "doc_coverage",}
     # Initial parse to print help
     options = parser.parse_args()
     # Load configuration and set defaults from it
@@ -170,6 +178,9 @@ def main():
     elif options.command == "review":
         if options.copy_py3k_sympy and not options.reference:
              parser.error("--copy-py3k-sympy requires --reference")
+
+        if options.doc_coverage:
+            options.build_docs = True
 
         # Set bool args
         for i in boolargs:
@@ -570,9 +581,42 @@ def dispatch_reviews(config, urls, **kwargs):
                     log.write(result["log"])
                 print "> Results logged to %s" % log_file
 
+                if config.doc_coverage:
+                    if not result["result"] == "Passed":
+                        print "> Docs did not build correctly. Skipping coverage."
+                    else:
+                        # Run doc coverage script
+                        print "> Running bin/coverage_doctest.py"
+                        # TODO: Should we pass -v to coverage_doctest.py?
+                        doc_coverage_result = run_tests(repo_url, branch,
+                            repo_path, doc_coverage_command, False, merge_commit)
+                        if doc_coverage_result["result"] == "error":
+                            print "> There was an error. Report not uploaded."
+                            sys.exit(1)
+
+                        # Run against master (actually, merge_commit) for a comparison
+                        try:
+                            cmd("git checkout %s" % merge_commit, echo=True,
+                                cwd=repo_path)
+                        except CmdException:
+                            print "> Could not checkout %s" % merge_commit
+                            sys.exit(1)
+
+                        # Rebuild the docs. A full rebuild should not be necessary
+                        run_tests(repo_url, branch, docs_repo_path,
+                            "make html-errors", False, merge_commit)
+
+                        master_doc_coverage_result = run_tests(repo_url,
+                            branch, repo_path, doc_coverage_command, False, merge_commit)
+                        if master_doc_coverage_result["result"] == "error":
+                            print "> There was an error. Report not uploaded."
+                            sys.exit(1)
+
+                        print "> Done."
+
                 # Upload results
                 if not config.no_upload:
-                    print "> Uploading test results"
+                    print "> Uploading doc build"
                     url_base = config.server
                     data = {
                         "num" : n,
@@ -583,13 +627,30 @@ def dispatch_reviews(config, urls, **kwargs):
                     }
                     report_url = reviews_sympy_org_upload(data, url_base)
                     print "> Uploaded report for building docs at: %s" % report_url
+
+                    if config.doc_coverage and result["result"] == "Passed":
+                        print "> Uploading doc coverage"
+                        data["result"] = doc_coverage_result["result"]
+                        data["log"] = (doc_coverage_result["log"] + '\nMaster Doctest Coverage\n\n'
+                            + master_doc_coverage_result["log"])
+                        doc_coverage_report_url = reviews_sympy_org_upload(data, url_base)
+                        print "> Uploaded report for building docs at: %s" % doc_coverage_report_url
                 else:
                     report_url = "(report was not uploaded)"
+                    doc_coverage_report_url = "(report was not uploaded)"
 
                 pull_review["build_docs"] = {
                     "result" : result["result"],
                     "url" : report_url,
                 }
+                if config.doc_coverage and result["result"] == "Passed":
+                    pull_review["doc_coverage"] = {
+                        "result": doc_coverage_result["result"],
+                        "url": doc_coverage_report_url,
+                        "log": doc_coverage_result["log"],
+                        "master_log": master_doc_coverage_result["log"]
+                        }
+
                 del result
                 print
 
@@ -606,7 +667,10 @@ def dispatch_reviews(config, urls, **kwargs):
         review = formulate_review(report_status, report_url, master_hash,
             branch_hash, config.interpreter, config.testcommand,
             config.build_docs, config.build_docs_command, users[n],
-            branches[n], merge_commit)
+            branches[n], merge_commit,
+            doc_coverage_log=reviews[n].get('doc_coverage', {}).get('log',
+                None), master_doc_coverage_log=reviews[n].get('doc_coverage',
+                    {}).get('master_log', None))
 
         print "> Review:"
         print
@@ -623,7 +687,8 @@ def dispatch_reviews(config, urls, **kwargs):
 
 def formulate_review(report_status, report_url, master_hash, branch_hash,
                      interpreter, testcommand, build_docs, build_docs_command,
-                     user, branch_name, merge_commit):
+                     user, branch_name, merge_commit, doc_coverage_log=None,
+                     master_doc_coverage_log=None):
     if user:
         atuser = "@"+user+": "
         branch_name = user + '/' + branch_name
@@ -650,11 +715,13 @@ See the report for a list of the merge conflicts."""
         summary = """:x: Could not fetch the branch {branch_name}.
 {atuser}Please make sure that {branch_name} has been pushed to GitHub and run the \
 sympy-bot tests again."""
-    elif any([status == "Failed" for status in report_status.itervalues()]):
+    # XXX: When we get full doctest coverage, remove special case of
+    # doc_coverage below.
+    elif any([status == "Failed" and test != "doc_coverage" for (test, status) in report_status.iteritems()]):
         summary = """:red_circle: Failed after merging \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash}).
 {atuser}Please fix the test failures."""
-    elif all([status == "Passed" for status in report_status.itervalues()]):
+    elif all([status == "Passed" or test == "doc_coverage" for (test, status) in report_status.iteritems()]):
         summary = """:white_check_mark: Passed after merging \
 {branch_name} ({branch_hash}) into {master_name} ({master_hash})."""
     else:
@@ -691,6 +758,15 @@ sympy-bot tests again."""
 
         report += "{symbol} **Sphinx {sphinx_version}**: {summary}{additional_info}\n".format(**details)
 
+    if "doc_coverage" in report_status.keys():
+        details = {}
+        details['status'] = report_status["doc_coverage"]
+        details['symbol'], details['summary'] = get_doc_coverage_summary(details['status'],
+            report_url['doc_coverage'], doc_coverage_log,
+            master_doc_coverage_log, master_name)
+
+        report += "{symbol} **Doc Coverage**: {summary}\n".format(**details)
+
     report += '''\n[sympy-bot]: https://github.com/sympy/sympy-bot "The \
 SymPy-Bot GitHub page."'''
     return report.format(**formatdict)
@@ -714,6 +790,81 @@ def get_summary(status, report_url):
     else:
         raise ValueError("Unknown report_status")
     return summary.format(report_url=report_url)
+
+def get_doc_coverage_summary(status, report_url, log, master_log, master_name):
+    basic_summary = get_summary(status, report_url)
+    if status not in {"Passed", "Failed"}:
+        return status_symbols[status], basic_summary
+
+    # TODO: Add a flag to coverage_doctest.py to output this data in a way that
+    # is easier to parse
+    doctest_score_re = re.compile(r"TOTAL DOCTEST SCORE for sympy: (\d+)% \((\d+) of (\d+)\)")
+    sphinx_score_re = re.compile(r"TOTAL SPHINX SCORE for sympy: (\d+)% \((\d+) of (\d+)\)")
+    doctest_match = doctest_score_re.search(log)
+    sphinx_match = sphinx_score_re.search(log)
+    master_doctest_match = doctest_score_re.search(master_log)
+    master_sphinx_match = sphinx_score_re.search(master_log)
+    if (not doctest_match or not sphinx_match or not master_doctest_match or
+        not master_sphinx_match):
+
+        return status_symbols['fetch'], "Could not parse output of coverage_doctest.py"
+
+    numbers = {
+        'status': status,
+        'report_url': report_url,
+        'basic_summary': basic_summary,
+        'master_name': master_name,
+    }
+    numbers['doctest_percent'], numbers['doctest_covered'], numbers['doctest_total'] = doctest_match.groups()
+    numbers['sphinx_percent'], numbers['sphinx_covered'], numbers['sphinx_total'] = sphinx_match.groups()
+    numbers['master_doctest_percent'], numbers['master_doctest_covered'], numbers['master_doctest_total'] = master_doctest_match.groups()
+    numbers['master_sphinx_percent'], numbers['master_sphinx_covered'], numbers['master_sphinx_total'] = master_sphinx_match.groups()
+
+    # Get the percentages with exactly the number of digits needed to see a
+    # difference of one.
+    numbers['doctest_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['doctest_total']),
+        10) + 1)) - 2,
+        int(numbers['doctest_covered'])/int(numbers['doctest_total'])*100)
+    numbers['sphinx_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['sphinx_total']),
+        10) + 1)) - 2,
+        int(numbers['sphinx_covered'])/int(numbers['sphinx_total'])*100)
+    numbers['master_doctest_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['master_doctest_total']),
+        10) + 1)) - 2,
+        int(numbers['master_doctest_covered'])/int(numbers['master_doctest_total'])*100)
+    numbers['master_sphinx_full_percent'] = "{1:.{0}f}".format(int(math.ceil(math.log(int(numbers['master_sphinx_total']),
+        10) + 1)) - 2,
+        int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total'])*100)
+
+    # XXX Change this when the pull request is merged
+    imgtemplate = '<img src="https://raw.github.com/asmeurer/sympy-bot/doctest_coverage/img/{imgname}.png" width="20" height="20" align="absmiddle" border="0">'
+    imgdict = {
+        -1: 'red_down',
+        0: 'blue_equals',
+        1: 'green_up',
+    }
+
+    numbers['doctest_img'] = imgdict[cmp(int(numbers['doctest_covered'])/int(numbers['doctest_total']),
+        int(numbers['master_doctest_covered'])/int(numbers['master_doctest_total']))]
+    numbers['sphinx_img'] = imgdict[cmp(int(numbers['sphinx_covered'])/int(numbers['sphinx_total']),
+        int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total']))]
+
+    numbers['doctest_html_img'] = imgtemplate.format(imgname=numbers['doctest_img'])
+    numbers['sphinx_html_img'] = imgtemplate.format(imgname=numbers['sphinx_img'])
+
+    if imgdict[-1] in {numbers['doctest_img'], numbers['sphinx_img']}:
+        symbol = imgtemplate.format(imgname=imgdict[-1])
+        numbers['basic_summary'] = "decreased"
+    elif imgdict[1] in {numbers['doctest_img'], numbers['sphinx_img']}:
+        symbol = imgtemplate.format(imgname=imgdict[1])
+        numbers['basic_summary'] = "increased"
+    else:
+        symbol = imgtemplate.format(imgname=imgdict[0])
+        numbers['basic_summary'] = "unchanged"
+
+    return symbol, """[{basic_summary}]({report_url})
+{doctest_html_img} {doctest_full_percent}% of functions have doctests (compared to {master_doctest_full_percent}% in {master_name})
+{sphinx_html_img} {sphinx_full_percent}% of functions are imported into Sphinx (compared to {master_sphinx_full_percent}% in {master_name})
+""".format(**numbers)
 
 if __name__ == "__main__":
     main()
