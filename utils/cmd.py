@@ -125,7 +125,7 @@ def get_platform_version(interpreter):
     executable = get_executable(interpreter)
     python_version = get_interpreter_version_info(interpreter)
     python_type = get_interpreter_type(interpreter)
-    r = "%s (%s, %s, %s)\n" % (executable, python_version, platform_system, architecture)
+
     return {'executable': executable,
             'python_version': python_version,
             'platform_system': platform_system,
