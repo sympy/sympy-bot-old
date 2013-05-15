@@ -836,7 +836,7 @@ def get_doc_coverage_summary(status, report_url, log, master_log, master_name):
         int(numbers['master_sphinx_covered'])/int(numbers['master_sphinx_total'])*100)
 
     # XXX Change this when the pull request is merged
-    imgtemplate = '<img src="https://raw.github.com/asmeurer/sympy-bot/doctest_coverage/img/{imgname}.png" width="20" height="20" align="absmiddle" border="0">'
+    imgtemplate = '<img src="https://raw.github.com/sympy/sympy-bot/doctest_coverage/img/{imgname}.png" width="20" height="20" align="absmiddle" border="0">'
     imgdict = {
         -1: 'red_down',
         0: 'blue_equals',
