@@ -114,7 +114,7 @@ def main():
         default=default_protocol, choices=["https", "git"], help="Protocol "
         "for communicating with GitHub")
     parser_review.add_argument("-s", "--server", type=str,
-        default="http://reviews.sympy.org", help="Server to upload results")
+        default="http://sympy-reviews.appspot.com", help="Server to upload results")
     parser_review.add_argument("-R", "--repository", type=str, default="sympy/sympy",
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
