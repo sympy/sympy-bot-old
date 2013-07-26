@@ -49,21 +49,6 @@ This gets passed to git, see ``git clone --help`` for more information. Then
 sympy-bot starts testing the branch immediately, even if you have a slower
 connections.
 
-This has another advantage: if you run ``./bin/use2to3`` in the reference
-directory and use the ``--copy-py3k-sympy`` option to ``sympy-bot``, the
-``py3k-sympy`` directory will be copied over to the testing directory, saving
-time (only those files that are changed by the pull request will have to be
-converted by 2to3 again). If you want to always enable this, add
-``copy_py3k_sympy = True`` to your ``sympy-bot.conf`` file (see the next
-section).  To remain effective, you should run ``./bin/use2to3`` off of master
-in the reference SymPy git repository on a regular basis.
-
-Note that this can occasionally produce false test failures.  If this happens,
-delete and recreate the ``py3k-sympy`` directory from the reference SymPy git
-repository, or don't use the ``--copy-py3k-sympy`` option.  If you have the
-option set in your config file, you can disable it with
-``--copy-py3k-sympy=False``.
-
 Configuration
 -------------
 
