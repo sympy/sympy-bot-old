@@ -5,7 +5,7 @@ from utils.cmd import cmd, cmd2, CmdException
 
 
 def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
-              test_command, python3, master_commit, run2to3=True):
+              test_command, master_commit):
     """
     This is a test runner function.
 
@@ -33,16 +33,6 @@ def run_tests(pull_request_repo_url, pull_request_branch, master_repo_path,
         "log": "",
         "xpassed": "",
     }
-    if python3:
-        if run2to3:
-            use2to3 = os.path.join("bin", "use2to3")
-            log, r = cmd2("python %s" % use2to3, cwd=master_repo_path)
-            if r != 0:
-                result["log"] = log
-                result["result"] = "Failed"
-                result["return_code"] = r
-                return result
-        master_repo_path = os.path.join(master_repo_path, "py3k-sympy")
     log, r = cmd2(test_command, cwd=master_repo_path)
     result["log"] = log
     result["return_code"] = r
