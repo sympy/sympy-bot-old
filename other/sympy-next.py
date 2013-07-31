@@ -99,27 +99,6 @@ def run_tests():
 
     return report
 
-py3k = "py3k-sympy"
-
-
-def pre_python3():
-    if translate:
-        logit("Translating to Python 3 ... (this may take a few minutes)")
-
-        if subprocess.call([interpreter, "bin/use2to3"], stdout=log, stderr=log) != 0:
-            raise RuntimeError("Can't translate to Python 3.")
-
-        logit("Entering %s" % py3k)
-        os.chdir(py3k)
-
-
-def post_python3():
-    if translate:
-        logit("Leaving %s" % py3k)
-        os.chdir("..")
-        logit("Removing %s" % py3k)
-        shutil.rmtree(py3k, True)
-
 
 def do_test(branches, name):
     def git(message, *args):
@@ -172,9 +151,7 @@ def do_test(branches, name):
 
         # run the tests
         if cantest:
-            pre_python3()
             tests.append(run_tests())
-            post_python3()
         else:
             assert len(todo) == 0
 

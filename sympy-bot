@@ -118,10 +118,6 @@ def main():
     parser_review.add_argument("-R", "--repository", type=str, default="sympy/sympy",
         help="GitHub repository used, allowing sympy-bot to be used with "
         "other projects")
-    parser_review.add_argument("--copy-py3k-sympy", nargs="?", const=True,
-        default=False, help="Copy the py3k-sympy directory from the reference "
-        "directory.  This requires -r.")
-
     parser_list = subparsers.add_parser("list",
         description="Lists available pull requests",
         help="Lists available pull requests",
@@ -136,7 +132,7 @@ def main():
         "other projects")
 
     boolargs = {"build_docs", "no_comment", "comment", "no_upload", "python2",
-        "python3", "copy_py3k_sympy", "doc_coverage",}
+        "python3", "doc_coverage",}
     # Initial parse to print help
     options = parser.parse_args()
     # Load configuration and set defaults from it
@@ -176,9 +172,6 @@ def main():
     if options.command == "list":
         github_list_pull_requests(urls, numbers_only=options.numbers)
     elif options.command == "review":
-        if options.copy_py3k_sympy and not options.reference:
-             parser.error("--copy-py3k-sympy requires --reference")
-
         if options.doc_coverage:
             options.build_docs = True
 
@@ -393,18 +386,6 @@ def dispatch_reviews(config, urls, **kwargs):
         reference = os.path.abspath(os.path.expanduser(os.path.expandvars(config.reference)))
         cmd("git clone --reference %s git://github.com/%s.git" % (reference, config.repository),
                 cwd=tmpdir)
-        if config.python3 and config.copy_py3k_sympy:
-            py3k_src = os.path.join(reference, "py3k-sympy")
-            py3k_dst = os.path.join(repo_path, "py3k-sympy")
-            if os.path.exists(py3k_src):
-                print "> Copying py3k-sympy directory"
-                try:
-                    shutil.copytree(py3k_src, py3k_dst)
-                except shutil.Error as e:
-                    print "> Could not copy the py3k-sympy directory from %s: %s" % (reference, e)
-            else:
-                print "> py3k-sympy directory does not exist in %s" % reference
-                print "> Run ./bin/2to3 in that directory to generate this directory, which will make this go much faster."
     else:
         cmd("git clone git://github.com/%s.git" % config.repository,
                 cwd=tmpdir)
@@ -521,9 +502,7 @@ def dispatch_reviews(config, urls, **kwargs):
                 print "> Testing interpreter %s" % i
                 command = "%s %s" % (i, config.testcommand)
                 result = run_tests(repo_url, branch, repo_path, command,
-                    python3[i], merge_commit, run2to3=run2to3)
-                if python3[i]:
-                    run2to3 = False
+                    merge_commit)
                 if result["result"] == "error":
                     print "> There was an error. Report not uploaded."
                     sys.exit(1)
@@ -569,7 +548,7 @@ def dispatch_reviews(config, urls, **kwargs):
                 else:
                     docs_repo_path = os.path.join(tmpdir, "sympy", config.build_docs_dir)
                     result = run_tests(repo_url, branch, docs_repo_path,
-                        config.build_docs_command, False, merge_commit)
+                        config.build_docs_command, merge_commit)
                     if result["result"] == "error":
                         print "> There was an error. Report not uploaded."
                         sys.exit(1)
@@ -589,7 +568,7 @@ def dispatch_reviews(config, urls, **kwargs):
                         print "> Running bin/coverage_doctest.py"
                         # TODO: Should we pass -v to coverage_doctest.py?
                         doc_coverage_result = run_tests(repo_url, branch,
-                            repo_path, doc_coverage_command, False, merge_commit)
+                            repo_path, doc_coverage_command, merge_commit)
                         if doc_coverage_result["result"] == "error":
                             print "> There was an error. Report not uploaded."
                             sys.exit(1)
@@ -604,10 +583,10 @@ def dispatch_reviews(config, urls, **kwargs):
 
                         # Rebuild the docs. A full rebuild should not be necessary
                         run_tests(repo_url, branch, docs_repo_path,
-                            "make html-errors", False, merge_commit)
+                            "make html-errors", merge_commit)
 
                         master_doc_coverage_result = run_tests(repo_url,
-                            branch, repo_path, doc_coverage_command, False, merge_commit)
+                            branch, repo_path, doc_coverage_command, merge_commit)
                         if master_doc_coverage_result["result"] == "error":
                             print "> There was an error. Report not uploaded."
                             sys.exit(1)
