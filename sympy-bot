@@ -688,7 +688,7 @@ def formulate_review(report_status, report_url, master_hash, branch_hash,
         summary = """:exclamation: There were [merge conflicts]({report_url}) (could not \
 merge {branch_name} ({branch_hash}) into {master_name} ({master_hash})); could \
 not test the branch.
-{atuser}Please rebase or merge your branch with master.  \
+{atuser}Please merge your branch with master.  \
 See the report for a list of the merge conflicts."""
     elif any([status == "fetch" for status in report_status.itervalues()]):
         summary = """:x: Could not fetch the branch {branch_name}.
