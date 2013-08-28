@@ -3,6 +3,8 @@ import json
 import sys
 import time
 import urllib2
+import os
+import ConfigParser
 from getpass import getpass
 
 from utils.cmd import keep_trying
@@ -26,7 +28,7 @@ def generate_token(urls, username, password, name="SymPy Bot"):
     )
 
     url = urls.authorize_url
-    rep = _query(url, username=username, password=password, data=enc_data)
+    rep = _query(url, data=enc_data, username=username, password=password)
     return rep["token"]
 
 
@@ -61,26 +63,24 @@ def github_get_pull_request(urls, n):
     return keep_trying(lambda: _query(url), urllib2.URLError,
                        "get pull request %d" % n, _check_issue)
 
-def github_get_user_info(urls, username):
-    url = urls.user_info_template % username
+def github_get_user_info(urls, user):
+    url = urls.user_info_template % user
     return keep_trying(lambda: _query(url), urllib2.URLError, "get user information")
 
-def github_get_user_repos(urls, username):
-    url = urls.user_repos_template % username
+def github_get_user_repos(urls, user):
+    url = urls.user_repos_template % user
     return keep_trying(lambda: _query(url), urllib2.URLError, "get user repository information")
 
 def github_check_authentication(urls, username, password, token):
     """
     Checks that username & password is valid.
     """
-    _query(urls.api_url, username, password, token)
+    _query(urls.api_url, None, username=username, password=password, token=token)
 
 
-def github_add_comment_to_pull_request(urls, username, password, token, n, comment):
+def github_add_comment_to_pull_request(urls, n, comment):
     """
     Adds a 'comment' to the pull request 'n'.
-
-    Currently it needs github username and password (as strings).
     """
     enc_comment = json.dumps(
         {
@@ -88,7 +88,7 @@ def github_add_comment_to_pull_request(urls, username, password, token, n, comme
         }
     )
     url = urls.issue_comment_template % n
-    response = _query(url, username, password, token, enc_comment)
+    response = _query(url, enc_comment)
     assert response["body"] == comment
 
 
@@ -120,8 +120,8 @@ def github_list_pull_requests(urls, numbers_only=False):
         created_at = pull["created_at"]
         created_at = time.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at = time.mktime(created_at)
-        username = pull["user"]["login"]
-        user_info = github_get_user_info(urls, username)
+        user = pull["user"]["login"]
+        user_info = github_get_user_info(urls, user)
         author = "\"%s\" <%s>" % (user_info.get("name", "unknown"),
                                   user_info.get("email", ""))
         branch_against = pull["base"]["ref"]
@@ -242,13 +242,27 @@ def _link2dict(l):
     return d
 
 
-def _query(url, username=None, password=None, token=None, data=""):
+def _query(url, data="", **kwargs):
     """
     Query github API,
     if username and password are presented, then the query is executed from the user account
 
     In case of a multipage result, query the next page and return all results.
     """
+    username = kwargs.get("username", None)
+    password = kwargs.get("password", None)
+    token = kwargs.get("token", None)
+
+    if not ((username and password) or (username and token)):
+        conf_file = load_conf_file()
+        username = conf_file.get("user", None)
+        token = conf_file.get("token", None)
+
+        if not token:
+            token_path = conf_file.get("token_file", None)
+            if token_path:
+                token = load_token(token_path)
+
     request = urllib2.Request(url)
     # Add authentication headers to request, if username and password presented
     if username:
@@ -278,6 +292,63 @@ def _query(url, username=None, password=None, token=None, data=""):
     link = http_response.headers.get("Link")
     nexturl = _link2dict(link).get("next") if link else None
     if nexturl:
-        response_body.extend(_query(nexturl, username, password, token, data))
+        response_body.extend(_query(nexturl, data, username=username, password=password, token=token))
 
     return response_body
+
+def load_conf_file(**kwargs):
+    profile = kwargs.get("profile", None);
+    default_section = "DEFAULT"
+    conf_file = os.path.normpath("~/.sympy/sympy-bot.conf")  #Set to default config path
+    conf_file = os.path.expanduser(conf_file)
+
+    parser = ConfigParser.SafeConfigParser()
+    default_items = {}
+    if os.path.exists(conf_file):
+        if profile is not None:
+            print "> Using config file %s" % conf_file
+        with open(conf_file) as f:
+            try:
+                parser.readfp(f)
+            except IOError as e:
+                if profile is not None:
+                    print "> WARNING: Unable to open config file:", e
+            except ConfigParser.Error as e:
+                if profile is not None:
+                    print "> WARNING: Unable to parse config file:", e
+            else:
+                if profile is not None:
+                    print "> Loaded configuration file"
+
+                # Try to get default items, as the following will not be true:
+                # parser.has_section("DEFAULT")
+                try:
+                    default_items = dict(parser.items(default_section, raw=True))
+                except ConfigParser.NoSectionError:
+                    pass
+
+                if profile is not None:
+                    if profile.upper() == default_section:
+                        items = default_items
+                    elif parser.has_section(profile):
+                        items = dict(parser.items(profile, vars=default_items))
+                    else:
+                        raise ConfigParser.Error("Configuration file does not contain profile: %s" % profile)
+
+                    return items
+    return default_items
+
+def load_token(path):
+    token = None
+    if path is None:
+        return token
+    path = os.path.expanduser(path)
+    path = os.path.abspath(path)
+    if os.path.isfile(path):
+        try:
+            with open(path) as f:
+                token = f.readline()
+                token = token.strip()
+        except IOError as e:
+            print "Unable to open token file:", e
+    return token
