@@ -273,7 +273,7 @@ def _query(url, username=None, password=None, token=None, data="", OTP=None):
             if two_factor:
                 print "A two-factor authentication code is required: ", two_factor[0].split(';')[1].strip()
                 OTP = raw_input("Authentication code: ")
-                return query_GitHub(url, username=username, password=password,
+                return _query(url, username=username, password=password,
                     token=token, data=data, OTP=OTP)
             raise AuthenticationFailed("invalid username or password")
         # Other exceptions
