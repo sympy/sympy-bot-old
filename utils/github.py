@@ -242,7 +242,7 @@ def _link2dict(l):
     return d
 
 
-def _query(url, username=None, password=None, token=None, data=""):
+def _query(url, username=None, password=None, token=None, data="", OTP=None):
     """
     Query github API,
     if username and password are presented, then the query is executed from the user account
@@ -257,6 +257,10 @@ def _query(url, username=None, password=None, token=None, data=""):
         elif password:
             base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
             request.add_header("Authorization", "Basic %s" % base64string)
+
+        if OTP:
+            request.add_header("X-GitHub-OTP", OTP)
+
     if data is not "":
         request.add_data(data)
     try:
@@ -265,6 +269,12 @@ def _query(url, username=None, password=None, token=None, data=""):
     except urllib2.HTTPError as e:
         # Auth exception
         if e.code == 401:
+            two_factor = e.headers.getheaders('X-GitHub-OTP')
+            if two_factor:
+                print "A two-factor authentication code is required: ", two_factor[0].split(';')[1].strip()
+                OTP = raw_input("Authentication code: ")
+                return _query(url, username=username, password=password,
+                    token=token, data=data, OTP=OTP)
             raise AuthenticationFailed("invalid username or password")
         # Other exceptions
         raise urllib2.HTTPError(e.filename, e.code, e.msg, None, None)
