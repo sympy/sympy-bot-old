@@ -7,6 +7,7 @@ import time
 class CmdException(Exception):
     pass
 
+_decode_error_action = 'ignore'
 
 def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
     """
@@ -29,7 +30,7 @@ def cmd(s, cwd=None, capture=False, ok_exit_code_list=[0], echo=False):
             cwd=cwd)
     output = p.communicate()[0]
     if output:
-        output = output.decode(sys.stdout.encoding)
+        output = output.decode(sys.stdout.encoding, _decode_error_action)
     r = p.returncode
     if r not in ok_exit_code_list:
         raise CmdException("Command '%s' failed with err=%d. %s" % (s, r, output))
@@ -55,7 +56,7 @@ def cmd2(cmd, cwd=None):
         sys.stdout.write(char)
         sys.stdout.flush()
     log = log + p.communicate()[0]
-    log = log.decode(sys.stdout.encoding)
+    log = log.decode(sys.stdout.encoding, _decode_error_action)
     r = p.returncode
 
     return log, r
