@@ -6,9 +6,6 @@ import traceback
 from random import random
 import urllib2
 
-from google.appengine.dist import use_library
-use_library("django", "1.2")
-
 from django.utils import simplejson as json
 
 from google.appengine.ext import webapp, db
@@ -28,7 +25,7 @@ dev_server = os.environ["SERVER_SOFTWARE"].startswith("Development")
 if dev_server:
     url_base = "http://localhost:8080"
 else:
-    url_base = "http://reviews.sympy.org"
+    url_base = "http://sympy-reviews.appspot.com"
 
 # default github user and repo
 polled_user = "sympy"

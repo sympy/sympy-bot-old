@@ -1,6 +1,7 @@
-application: sympy3
-version: 7
-runtime: python
+application: sympy-reviews
+version: 8
+runtime: python27
+threadsafe: no
 api_version: 1
 
 handlers:
@@ -11,3 +12,7 @@ handlers:
 
 builtins:
 - remote_api: on
+
+libraries:
+- name: django
+  version: "latest"
